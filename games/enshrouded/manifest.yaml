@@ -1,0 +1,40 @@
+# Enshrouded dedicated server (Windows-only binary, run under Wine).
+# Facts: Enshrouded-Server-Docs/*.pdf. Settings schema and config template: task T5.
+id: enshrouded
+name: Enshrouded
+steam:
+  serverAppId: 2278520 # dedicated server tool; to be confirmed with app_info_print in T5
+  gameAppId: 1203620
+  platform: windows
+  anonymous: true
+runtime:
+  image: steamcmd-wine
+launch:
+  command: ["wine", "enshrouded_server.exe"]
+  stopSignal: SIGINT
+  stopTimeoutSeconds: 90
+ports:
+  - name: query
+    default: 15637
+    protocol: udp
+    description: Steam query / game port (IPv4 only)
+settings:
+  schema: settings.schema.json
+  file:
+    path: enshrouded_server.json
+    format: json
+    template: enshrouded_server.json.tmpl
+persist:
+  - name: savegame
+    path: savegame
+    backup: true
+  - name: logs
+    path: logs
+readiness:
+  logRegex: "\\[Session\\] 'HostOnline' \\(up\\)!"
+  timeoutSeconds: 900
+resources:
+  memoryMB: 8192 # ~4.4 GB idle, +100 MB/player, <=6 GB per FAQ; headroom for Wine
+  diskGB: 30
+mods:
+  loader: none

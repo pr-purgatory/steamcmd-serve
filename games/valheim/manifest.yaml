@@ -1,0 +1,55 @@
+# Valheim dedicated server (native Linux). Reference game for the mod pipeline (T11).
+id: valheim
+name: Valheim
+steam:
+  serverAppId: 896660
+  gameAppId: 892970
+  platform: linux
+  anonymous: true
+runtime:
+  image: steamcmd-base
+  env:
+    SteamAppId: "892970"
+    LD_LIBRARY_PATH: "./linux64"
+launch:
+  command:
+    - ./valheim_server.x86_64
+    - -nographics
+    - -batchmode
+    - -name
+    - "{{ .Settings.name }}"
+    - -port
+    - "{{ .Ports.game }}"
+    - -world
+    - "{{ .Settings.world }}"
+    - -password
+    - "{{ .Settings.password }}"
+    - -public
+    - "{{ if .Settings.public }}1{{ else }}0{{ end }}"
+    - -savedir
+    - "{{ .Paths.data }}/saves"
+  stopSignal: SIGINT
+  stopTimeoutSeconds: 60
+ports:
+  - name: game
+    default: 2456
+    protocol: udp
+  - name: query
+    default: 2457
+    protocol: udp
+    derive: { from: game, offset: 1 }
+settings:
+  schema: settings.schema.json
+readiness:
+  logRegex: "Game server connected"
+  timeoutSeconds: 600
+resources:
+  memoryMB: 4096
+  diskGB: 5
+mods:
+  loader: bepinex
+  providers:
+    - type: thunderstore
+      community: valheim
+    - type: nexus
+      gameDomain: valheim

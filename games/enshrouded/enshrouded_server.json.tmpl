@@ -1,0 +1,9 @@
+{{- /* Stub; T5 completes. Controller-owned keys (paths, ip, queryPort) are not user settings. */ -}}
+{
+  "name": {{ json .Settings.name }},
+  "saveDirectory": "./savegame",
+  "logDirectory": "./logs",
+  "ip": "0.0.0.0",
+  "queryPort": {{ .Ports.query }},
+  "slotCount": {{ json .Settings.slotCount }}
+}

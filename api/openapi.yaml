@@ -1,0 +1,757 @@
+openapi: 3.1.0
+info:
+  title: steamcmd-serve API
+  version: 0.1.0
+  description: |
+    Manage SteamCMD game-server instances.
+
+    Auth: session cookie from `POST /auth/login`. Mutating requests need header
+    `X-CSRF-Token` with the value from `GET /auth/session`.
+
+    Secrets (fields marked `x-secret: true` in a game's settings schema, and the
+    Nexus API key) are write-only: reads return `{"hasValue": true}` instead of the value.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: /api/v1
+security:
+  - session: []
+tags:
+  - name: system
+    description: Health
+  - name: auth
+    description: First-run setup and sessions
+  - name: games
+    description: Supported games from the manifest catalog
+  - name: instances
+    description: Game-server instances and their lifecycle
+  - name: backups
+    description: Save backups and restores
+  - name: mods
+    description: Mod search and per-instance mod installs
+  - name: jobs
+    description: Long-running operations
+  - name: settings
+    description: Controller-wide settings
+
+paths:
+  /healthz:
+    servers:
+      - url: /
+    get:
+      tags: [system]
+      operationId: health
+      summary: Liveness probe
+      security: []
+      responses:
+        '204':
+          description: Healthy
+
+  /setup:
+    post:
+      tags: [auth]
+      operationId: setup
+      summary: Create the first admin (only while no admin exists)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '201': { description: Admin created }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Setup already completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      operationId: login
+      summary: Log in and receive a session cookie
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Credentials' }
+      responses:
+        '204':
+          description: Logged in
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429':
+          description: Too many attempts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: End the session
+      responses:
+        '204': { description: Logged out }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/session:
+    get:
+      tags: [auth]
+      operationId: getSession
+      summary: Current session and CSRF token
+      responses:
+        '200':
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /games:
+    get:
+      tags: [games]
+      operationId: listGames
+      summary: List supported games
+      responses:
+        '200':
+          description: Games
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Game' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /games/{gameId}:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [games]
+      operationId: getGame
+      summary: One game, including its settings JSON Schema
+      responses:
+        '200':
+          description: Game
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GameDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /instances:
+    get:
+      tags: [instances]
+      operationId: listInstances
+      summary: List instances
+      responses:
+        '200':
+          description: Instances
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Instance' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [instances]
+      operationId: createInstance
+      summary: Create an instance (does not install)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstanceCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /instances/{instanceId}:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+    get:
+      tags: [instances]
+      operationId: getInstance
+      summary: One instance
+      responses:
+        '200':
+          description: Instance
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [instances]
+      operationId: updateInstance
+      summary: Rename, change ports or memory limit (instance must be stopped for ports)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstanceUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Instance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [instances]
+      operationId: deleteInstance
+      summary: Delete a stopped instance
+      parameters:
+        - name: deleteData
+          in: query
+          description: Also delete install, saves and backups on disk.
+          schema: { type: boolean, default: false }
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /instances/{instanceId}/actions/{action}:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [install, update, start, stop, restart]
+    post:
+      tags: [instances]
+      operationId: instanceAction
+      summary: Run a lifecycle action; long actions return a job
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /instances/{instanceId}/settings:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+    get:
+      tags: [instances]
+      operationId: getSettings
+      summary: Instance settings (secrets masked)
+      responses:
+        '200':
+          description: Settings matching the game's settings schema
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [instances]
+      operationId: putSettings
+      summary: Replace settings; applied on next start
+      description: Omitted secret fields keep their stored value.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Settings' }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /instances/{instanceId}/logs:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+    get:
+      tags: [instances]
+      operationId: streamLogs
+      summary: Server log stream (Server-Sent Events)
+      parameters:
+        - name: tail
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 5000, default: 500 }
+      responses:
+        '200':
+          description: 'SSE stream; each event `data:` is one log line, event `state` carries instance state changes.'
+          content:
+            text/event-stream:
+              schema: { type: string }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /instances/{instanceId}/backups:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+    get:
+      tags: [backups]
+      operationId: listBackups
+      summary: List backups
+      responses:
+        '200':
+          description: Backups, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Backup' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [backups]
+      operationId: createBackup
+      summary: Back up persisted paths marked backup:true
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /instances/{instanceId}/backups/{backupId}/restore:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - name: backupId
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [backups]
+      operationId: restoreBackup
+      summary: Restore a backup into a stopped instance (current data is backed up first)
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /instances/{instanceId}/mods:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+    get:
+      tags: [mods]
+      operationId: listInstanceMods
+      summary: Installed mods
+      responses:
+        '200':
+          description: Installed mods
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/InstalledMod' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [mods]
+      operationId: installMod
+      summary: Install a mod and its dependencies into a stopped instance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ModInstall' }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [provider, ref, file]
+              properties:
+                provider: { type: string }
+                ref: { $ref: '#/components/schemas/ModRef' }
+                file:
+                  type: string
+                  contentMediaType: application/zip
+                  description: Manually downloaded archive (Nexus without Premium).
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '428':
+          description: Provider needs a manual upload of this file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /instances/{instanceId}/mods/{modId}:
+    parameters:
+      - $ref: '#/components/parameters/InstanceId'
+      - name: modId
+        in: path
+        required: true
+        schema: { type: string }
+    delete:
+      tags: [mods]
+      operationId: uninstallMod
+      summary: Uninstall a mod from a stopped instance
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /games/{gameId}/mods:
+    parameters:
+      - $ref: '#/components/parameters/GameId'
+    get:
+      tags: [mods]
+      operationId: searchMods
+      summary: Search a mod provider for this game
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema: { type: string, enum: [thunderstore, nexus] }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Packages
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ModPackage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [jobs]
+      operationId: getJob
+      summary: Job status
+      responses:
+        '200':
+          description: Job
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Job' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /settings/nexus-api-key:
+    put:
+      tags: [settings]
+      operationId: setNexusKey
+      summary: Store the NexusMods API key (validated before saving)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey]
+              properties:
+                apiKey: { type: string, minLength: 1, writeOnly: true }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NexusAccount' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    get:
+      tags: [settings]
+      operationId: getNexusKey
+      summary: Whether a key is stored, and its account tier
+      responses:
+        '200':
+          description: Status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NexusAccount' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    delete:
+      tags: [settings]
+      operationId: deleteNexusKey
+      summary: Remove the stored key
+      responses:
+        '204': { description: Removed }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: scs_session
+
+  parameters:
+    GameId:
+      name: gameId
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,39}$' }
+    InstanceId:
+      name: instanceId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid input
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Not logged in
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflicts with current state (port in use, instance running, job in progress)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: [port_in_use] }
+        message: { type: string }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
+
+    Credentials:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 12, writeOnly: true }
+
+    Session:
+      type: object
+      required: [username, csrfToken]
+      properties:
+        username: { type: string }
+        csrfToken: { type: string }
+
+    PortSpec:
+      type: object
+      required: [name, default, protocol]
+      properties:
+        name: { type: string }
+        default: { type: integer }
+        protocol: { type: string, enum: [udp, tcp] }
+        derivedFrom: { type: string, description: Set when the port is fixed relative to another. }
+        offset: { type: integer }
+        description: { type: string }
+
+    Game:
+      type: object
+      required: [id, name, platform, ports, modLoader, resources]
+      properties:
+        id: { type: string, examples: [enshrouded] }
+        name: { type: string, examples: [Enshrouded] }
+        platform: { type: string, enum: [linux, windows] }
+        serverAppId: { type: integer, examples: [2278520] }
+        gameAppId: { type: integer, examples: [1203620] }
+        ports:
+          type: array
+          items: { $ref: '#/components/schemas/PortSpec' }
+        modLoader: { type: string, enum: [none, bepinex] }
+        modProviders:
+          type: array
+          items: { type: string, enum: [thunderstore, nexus] }
+        resources:
+          type: object
+          required: [memoryMB, diskGB]
+          properties:
+            memoryMB: { type: integer }
+            diskGB: { type: integer }
+
+    GameDetail:
+      allOf:
+        - $ref: '#/components/schemas/Game'
+        - type: object
+          required: [settingsSchema]
+          properties:
+            settingsSchema:
+              type: object
+              description: JSON Schema (2020-12) for instance settings, with x-ui / x-unit / x-secret hints.
+
+    InstanceState:
+      type: string
+      enum: [new, installing, stopped, starting, running, stopping, updating, error]
+
+    PortBinding:
+      type: object
+      required: [name, port, protocol]
+      properties:
+        name: { type: string }
+        port: { type: integer, minimum: 1024, maximum: 65535 }
+        protocol: { type: string, enum: [udp, tcp] }
+
+    Instance:
+      type: object
+      required: [id, name, gameId, state, ports, memoryMB, createdAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        gameId: { type: string }
+        state: { $ref: '#/components/schemas/InstanceState' }
+        stateDetail: { type: string, description: Error text or progress note. }
+        ready: { type: boolean, description: Readiness log line seen since last start. }
+        ports:
+          type: array
+          items: { $ref: '#/components/schemas/PortBinding' }
+        memoryMB: { type: integer }
+        installedBuildId: { type: string }
+        configDrift: { type: boolean, description: The game rewrote its config file since the last render. }
+        createdAt: { type: string, format: date-time }
+
+    InstanceCreate:
+      type: object
+      required: [name, gameId]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9][A-Za-z0-9 _.-]*$' }
+        gameId: { type: string }
+        ports:
+          type: object
+          description: Port name to host port. Missing names get the default or the next free port. Derived ports are ignored.
+          additionalProperties: { type: integer, minimum: 1024, maximum: 65535 }
+        memoryMB: { type: integer, minimum: 128 }
+        settings: { $ref: '#/components/schemas/Settings' }
+
+    InstanceUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64, pattern: '^[A-Za-z0-9][A-Za-z0-9 _.-]*$' }
+        ports:
+          type: object
+          additionalProperties: { type: integer, minimum: 1024, maximum: 65535 }
+        memoryMB: { type: integer, minimum: 128 }
+
+    Settings:
+      type: object
+      description: 'Validated against the game''s settings schema. Secret fields read back as {"hasValue": true}.'
+      additionalProperties: true
+
+    Job:
+      type: object
+      required: [id, kind, status, createdAt]
+      properties:
+        id: { type: string }
+        instanceId: { type: string }
+        kind: { type: string, enum: [install, update, start, stop, restart, backup, restore, mod-install, mod-uninstall] }
+        status: { type: string, enum: [queued, running, succeeded, failed] }
+        progress: { type: number, minimum: 0, maximum: 1 }
+        message: { type: string }
+        createdAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+
+    Backup:
+      type: object
+      required: [id, createdAt, sizeBytes, reason]
+      properties:
+        id: { type: string }
+        createdAt: { type: string, format: date-time }
+        sizeBytes: { type: integer }
+        reason: { type: string, enum: [manual, scheduled, pre-update, pre-restore] }
+
+    ModRef:
+      type: object
+      required: [id, version]
+      properties:
+        id: { type: string, description: 'Thunderstore "Namespace-Name"; Nexus "<modId>:<fileId>".' }
+        version: { type: string }
+
+    ModPackage:
+      type: object
+      required: [ref, name]
+      properties:
+        ref: { $ref: '#/components/schemas/ModRef' }
+        name: { type: string }
+        author: { type: string }
+        summary: { type: string }
+        dependencies:
+          type: array
+          items: { $ref: '#/components/schemas/ModRef' }
+
+    ModInstall:
+      type: object
+      required: [provider, ref]
+      properties:
+        provider: { type: string, enum: [thunderstore, nexus] }
+        ref: { $ref: '#/components/schemas/ModRef' }
+
+    InstalledMod:
+      type: object
+      required: [id, provider, ref, installedAt]
+      properties:
+        id: { type: string }
+        provider: { type: string, enum: [thunderstore, nexus, upload] }
+        ref: { $ref: '#/components/schemas/ModRef' }
+        dependencyOf: { type: string, description: Installed only as a dependency of this mod id. }
+        installedAt: { type: string, format: date-time }
+
+    NexusAccount:
+      type: object
+      required: [hasValue]
+      properties:
+        hasValue: { type: boolean }
+        premium: { type: boolean }
+        username: { type: string }

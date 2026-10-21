@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://steamcmd-serve.dev/schemas/manifest.schema.json",
+  "title": "steamcmd-serve game manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "steam", "runtime", "launch", "ports", "settings", "readiness", "resources", "mods"],
+  "properties": {
+    "id": {
+      "description": "Stable slug; must equal the directory name under games/.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,39}$"
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "steam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serverAppId", "platform"],
+      "properties": {
+        "serverAppId": { "description": "App id passed to steamcmd app_update.", "type": "integer", "minimum": 1 },
+        "gameAppId": { "description": "Client game app id (display, store link, A2S checks).", "type": "integer", "minimum": 1 },
+        "platform": { "enum": ["linux", "windows"] },
+        "branch": { "type": "string", "minLength": 1 },
+        "anonymous": { "description": "steamcmd login anonymous works for this app.", "type": "boolean", "default": true }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image"],
+      "properties": {
+        "image": { "enum": ["steamcmd-base", "steamcmd-wine"] },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command"],
+      "properties": {
+        "command": {
+          "description": "argv; each element is a Go text/template with .Settings, .Ports, .Paths.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "workdir": { "description": "Relative to the install dir.", "type": "string", "default": "." },
+        "stopSignal": { "enum": ["SIGTERM", "SIGINT"], "default": "SIGTERM" },
+        "stopTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 600, "default": 60 }
+      }
+    },
+    "ports": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "default", "protocol"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9]*$" },
+          "default": { "type": "integer", "minimum": 1024, "maximum": 65535 },
+          "protocol": { "enum": ["udp", "tcp"] },
+          "derive": {
+            "description": "Port fixed relative to another port of this game (e.g. Valheim query = game + 1); not user-editable.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "offset"],
+            "properties": {
+              "from": { "type": "string" },
+              "offset": { "type": "integer", "minimum": -100, "maximum": 100, "not": { "const": 0 } }
+            }
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema"],
+      "properties": {
+        "schema": { "description": "Path, relative to the manifest, of the settings JSON Schema.", "type": "string", "minLength": 1 },
+        "file": {
+          "description": "Config file rendered from settings before every start.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "format"],
+          "properties": {
+            "path": { "description": "Relative to the install dir.", "type": "string", "minLength": 1 },
+            "format": { "enum": ["json"] },
+            "template": { "description": "Optional Go text/template file relative to the manifest; default renders .Settings as-is.", "type": "string" }
+          }
+        }
+      }
+    },
+    "persist": {
+      "description": "Directories inside the install dir that are stored under the instance data dir.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "path": { "type": "string", "minLength": 1 },
+          "backup": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logRegex"],
+      "properties": {
+        "logRegex": { "type": "string", "minLength": 1 },
+        "timeoutSeconds": { "type": "integer", "minimum": 10, "default": 600 }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memoryMB", "diskGB"],
+      "properties": {
+        "memoryMB": { "description": "Recommended memory limit per instance.", "type": "integer", "minimum": 128 },
+        "diskGB": { "description": "Free disk needed for install plus headroom.", "type": "integer", "minimum": 1 }
+      }
+    },
+    "mods": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loader"],
+      "properties": {
+        "loader": { "enum": ["none", "bepinex"] },
+        "providers": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "community"],
+                "properties": {
+                  "type": { "const": "thunderstore" },
+                  "community": { "type": "string", "minLength": 1 }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "gameDomain"],
+                "properties": {
+                  "type": { "const": "nexus" },
+                  "gameDomain": { "type": "string", "minLength": 1 }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "if": { "properties": { "loader": { "const": "none" } } },
+      "then": { "properties": { "providers": { "maxItems": 0 } } }
+    }
+  }
+}
