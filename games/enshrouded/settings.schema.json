@@ -116,6 +116,7 @@
         "curseModifier": "Normal"
       },
       "x-ui-group": "difficulty",
+      "x-enabled-when": { "gameSettingsPreset": "Custom" },
       "properties": {
         "playerHealthFactor": {
           "title": "Player health",

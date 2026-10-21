@@ -11,6 +11,7 @@ import (
 
 	"steamcmd-serve/games"
 	"steamcmd-serve/internal/catalog"
+	"steamcmd-serve/internal/jobs"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/runtime"
 	"steamcmd-serve/internal/store"
@@ -75,7 +76,7 @@ mods: {loader: none}
 		t.Fatalf("engine not reachable: %v", err)
 	}
 	opt := Options{DataDir: dataDir, HostDataRoot: dataDir, PUID: 1000, PGID: 1000, Images: map[string]string{"steamcmd-base": image}}
-	svc, err := New(st, rt, gs, opt)
+	svc, err := New(st, rt, gs, jobs.NewTracker(ctx), opt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ mods: {loader: none}
 	if err := st.SetState(ctx, a.ID, store.StateStopped, ""); err != nil {
 		t.Fatal(err)
 	}
-	svc2, _ := New(st, rt, gs, opt)
+	svc2, _ := New(st, rt, gs, jobs.NewTracker(ctx), opt)
 	if err := svc2.Reconcile(ctx); err != nil {
 		t.Fatal(err)
 	}

@@ -14,6 +14,7 @@ import (
 	"steamcmd-serve/games"
 	"steamcmd-serve/internal/catalog"
 	"steamcmd-serve/internal/instance"
+	"steamcmd-serve/internal/jobs"
 	"steamcmd-serve/internal/runtime"
 	"steamcmd-serve/internal/store"
 )
@@ -72,7 +73,8 @@ func run() error {
 	if err := rt.Ping(ctx); err != nil {
 		return fmt.Errorf("container engine not reachable (DOCKER_HOST): %w", err)
 	}
-	svc, err := instance.New(st, rt, catalogGames, opt)
+	jt := jobs.NewTracker(ctx)
+	svc, err := instance.New(st, rt, catalogGames, jt, opt)
 	if err != nil {
 		return err
 	}

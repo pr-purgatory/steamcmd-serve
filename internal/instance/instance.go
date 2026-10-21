@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"steamcmd-serve/internal/catalog"
+	"steamcmd-serve/internal/jobs"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/runtime"
 	"steamcmd-serve/internal/store"
@@ -46,6 +47,7 @@ type Service struct {
 	store *store.Store
 	rt    *runtime.Docker
 	games map[string]*catalog.Game
+	jobs  *jobs.Tracker
 	opt   Options
 
 	allocMu sync.Mutex // serializes port allocation + insert
@@ -53,7 +55,7 @@ type Service struct {
 }
 
 // New validates opt and returns a Service.
-func New(st *store.Store, rt *runtime.Docker, games map[string]*catalog.Game, opt Options) (*Service, error) {
+func New(st *store.Store, rt *runtime.Docker, games map[string]*catalog.Game, jt *jobs.Tracker, opt Options) (*Service, error) {
 	if !filepath.IsAbs(opt.DataDir) || !path.IsAbs(opt.HostDataRoot) {
 		return nil, fmt.Errorf("DATA_DIR and HOST_DATA_ROOT must be absolute paths")
 	}
@@ -62,7 +64,7 @@ func New(st *store.Store, rt *runtime.Docker, games map[string]*catalog.Game, op
 			return nil, fmt.Errorf("game %s: no image configured for runtime %q", g.Manifest.ID, g.Manifest.Runtime.Image)
 		}
 	}
-	return &Service{store: st, rt: rt, games: games, opt: opt}, nil
+	return &Service{store: st, rt: rt, games: games, jobs: jt, opt: opt}, nil
 }
 
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$`)
