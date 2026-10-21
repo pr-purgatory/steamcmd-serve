@@ -59,7 +59,8 @@ var _ Instances = (*instance.Service)(nil)
 
 // Handler serves the REST API.
 type Handler struct {
-	svc Instances
+	svc   Instances
+	nexus NexusSettings // nil: the nexus routes answer 501
 	// keepalive is the SSE comment interval; tests shorten it.
 	keepalive time.Duration
 }
@@ -95,10 +96,9 @@ func (h *Handler) Register(mux *http.ServeMux) {
 		{"GET /instances/{instanceId}/mods", h.listInstanceMods},
 		{"POST /instances/{instanceId}/mods", h.installMod},
 		{"DELETE /instances/{instanceId}/mods/{modId}", h.uninstallMod},
-		// The NexusMods task implements these.
-		{"PUT /settings/nexus-api-key", notImplemented},
-		{"GET /settings/nexus-api-key", notImplemented},
-		{"DELETE /settings/nexus-api-key", notImplemented},
+		{"PUT /settings/nexus-api-key", h.setNexusKey},
+		{"GET /settings/nexus-api-key", h.getNexusKey},
+		{"DELETE /settings/nexus-api-key", h.deleteNexusKey},
 	}
 	for _, r := range routes {
 		method, path, _ := strings.Cut(r.pattern, " ")

@@ -100,3 +100,29 @@ func TestInstanceLifecycle(t *testing.T) {
 		t.Fatalf("reopen: %v %v", got, err)
 	}
 }
+
+func TestSettings(t *testing.T) {
+	ctx := context.Background()
+	s, _ := open(t)
+	if _, err := s.GetSetting(ctx, "k"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("absent: %v", err)
+	}
+	if err := s.SetSetting(ctx, "k", "v1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetSetting(ctx, "k", "v2"); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := s.GetSetting(ctx, "k"); err != nil || v != "v2" {
+		t.Fatalf("got %q, %v", v, err)
+	}
+	if err := s.DeleteSetting(ctx, "k"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteSetting(ctx, "k"); err != nil {
+		t.Fatalf("delete absent: %v", err)
+	}
+	if _, err := s.GetSetting(ctx, "k"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("after delete: %v", err)
+	}
+}

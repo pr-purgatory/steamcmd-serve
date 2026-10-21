@@ -152,7 +152,9 @@ type env struct {
 	router routers.Router
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t *testing.T) *env { return newEnvNexus(t, nil) }
+
+func newEnvNexus(t *testing.T, n NexusSettings) *env {
 	t.Helper()
 	loader := openapi3.NewLoader()
 	doc, err := loader.LoadFromFile("../../api/openapi.yaml")
@@ -169,7 +171,7 @@ func newEnv(t *testing.T) *env {
 	}
 	f := &fake{games: testGames(t)}
 	mux := http.NewServeMux()
-	New(f).Register(mux)
+	New(f).WithNexus(n).Register(mux)
 	return &env{t: t, f: f, mux: mux, router: router}
 }
 
@@ -494,16 +496,6 @@ func TestBackupsAndJobs(t *testing.T) {
 	rr := e.do("GET", "/jobs/job1", "")
 	if rr.Code != 200 || !strings.Contains(rr.Body.String(), `"status":"running"`) {
 		t.Errorf("job %d %s", rr.Code, rr.Body)
-	}
-}
-
-func TestNexusKeyNotImplemented(t *testing.T) {
-	e := newEnv(t)
-	for _, m := range []string{"PUT", "GET", "DELETE"} {
-		rr := e.serve(m, "/settings/nexus-api-key", `{}`)
-		if rr.Code != 501 || decodeErr(t, rr).Code != "not_implemented" {
-			t.Errorf("%s: %d %s", m, rr.Code, rr.Body)
-		}
 	}
 }
 

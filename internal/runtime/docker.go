@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -240,6 +241,9 @@ func (d *Docker) ensureImage(ctx context.Context, ref string) error {
 	return nil
 }
 
+// ansi matches terminal escape sequences (steamcmd colours its output).
+var ansi = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+
 // LogOptions select which log lines FollowLogs delivers.
 type LogOptions struct {
 	Tail   int  // lines of history; -1 for all
@@ -271,7 +275,7 @@ func (d *Docker) FollowLogs(ctx context.Context, id string, o LogOptions, onLine
 	sc := bufio.NewScanner(pr)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
 	for sc.Scan() {
-		if err := onLine(strings.TrimRight(sc.Text(), "\r")); err != nil {
+		if err := onLine(ansi.ReplaceAllString(strings.TrimRight(sc.Text(), "\r"), "")); err != nil {
 			return err
 		}
 	}

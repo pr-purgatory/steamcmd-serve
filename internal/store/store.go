@@ -91,6 +91,7 @@ var migrations = []string{
 		installed_at TEXT NOT NULL,
 		UNIQUE (instance_id, provider, package_id)
 	);`,
+	`CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`,
 }
 
 // Open opens (creating if needed) and migrates the database at path.
@@ -466,4 +467,28 @@ func (s *Store) ReplaceMods(ctx context.Context, instanceID string, mods []*Mod)
 		}
 		return nil
 	})
+}
+
+// GetSetting returns an app-wide setting (ErrNotFound when absent). Callers store
+// secrets only after sealing them with internal/secrets.
+func (s *Store) GetSetting(ctx context.Context, key string) (string, error) {
+	var v string
+	err := s.db.QueryRowContext(ctx, `SELECT value FROM app_settings WHERE key = ?`, key).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return v, err
+}
+
+// SetSetting creates or replaces an app-wide setting.
+func (s *Store) SetSetting(ctx context.Context, key, value string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`, key, value)
+	return err
+}
+
+// DeleteSetting removes a setting; deleting an absent key is not an error.
+func (s *Store) DeleteSetting(ctx context.Context, key string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM app_settings WHERE key = ?`, key)
+	return err
 }

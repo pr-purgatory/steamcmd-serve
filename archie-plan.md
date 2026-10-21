@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done · W6 done
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -213,7 +213,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T12 — Thunderstore provider
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (index cache w/ conditional GET + singleflight, semver dedupe, URL allowlist; shape verified live)
 - Depends: T11
 - Wave: 6 · Parallel: yes
 - Files: `internal/mods/thunderstore/**` (w), `internal/mods/provider.go` (r), `cmd/controller/main.go` (w: register in Options.ModProviders)
@@ -223,7 +223,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T13 — NexusMods provider
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (keyring: validate-then-seal, offline status; GraphQL search verified live; REST v1 shapes assumed — needs a real key to verify)
 - Depends: T11
 - Wave: 6 · Parallel: yes
 - Files: `internal/mods/nexus/**` (w), `internal/mods/provider.go` (r), `internal/api/` nexus-api-key routes (w, replace 501), `cmd/controller/main.go` (w)
@@ -233,7 +233,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T17 — E2E smoke on Unraid
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo (blocked on Q11)
+- Status: done (PASS on Unraid 7.3.2: 2 Enshrouded instances, A2S on 15637/15638, logs, stop 9 s, backup, clean delete)
 - Depends: T7, T8, T9, T15
 - Wave: 6 · Parallel: no
 - Files: `test/e2e/enshrouded.sh` (w)

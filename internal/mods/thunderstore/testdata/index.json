@@ -1,0 +1,379 @@
+[
+ {
+  "name": "BepInExPack_Valheim",
+  "full_name": "denikson-BepInExPack_Valheim",
+  "owner": "denikson",
+  "package_url": "https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Libraries"
+  ],
+  "versions": [
+   {
+    "name": "BepInExPack_Valheim",
+    "full_name": "denikson-BepInExPack_Valheim-5.4.2351",
+    "description": "BepInEx pack for Valheim.",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "5.4.2351",
+    "dependencies": [],
+    "download_url": "__BASE__/package/download/denikson/BepInExPack_Valheim/5.4.2351/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   },
+   {
+    "name": "BepInExPack_Valheim",
+    "full_name": "denikson-BepInExPack_Valheim-5.4.2202",
+    "description": "BepInEx pack for Valheim.",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "5.4.2202",
+    "dependencies": [],
+    "download_url": "__BASE__/package/download/denikson/BepInExPack_Valheim/5.4.2202/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Spawner",
+  "full_name": "Author-Spawner",
+  "owner": "Author",
+  "package_url": "https://thunderstore.io/c/valheim/p/Author/Spawner/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Spawner",
+    "full_name": "Author-Spawner-1.0.0",
+    "description": "Spawn anything with a console command.",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "denikson-BepInExPack_Valheim-5.4.2202"
+    ],
+    "download_url": "__BASE__/package/download/Author/Spawner/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Spawn",
+  "full_name": "Top-Spawn",
+  "owner": "Top",
+  "package_url": "https://thunderstore.io/c/valheim/p/Top/Spawn/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Spawn",
+    "full_name": "Top-Spawn-1.0.0",
+    "description": "Spawn helper bundle.",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Left-Left-1.0.0",
+     "Right-Right-1.0.0"
+    ],
+    "download_url": "__BASE__/package/download/Top/Spawn/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Left",
+  "full_name": "Left-Left",
+  "owner": "Left",
+  "package_url": "https://thunderstore.io/c/valheim/p/Left/Left/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Left",
+    "full_name": "Left-Left-1.0.0",
+    "description": "Left mod",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Shared-Shared-1.2.0"
+    ],
+    "download_url": "__BASE__/package/download/Left/Left/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Right",
+  "full_name": "Right-Right",
+  "owner": "Right",
+  "package_url": "https://thunderstore.io/c/valheim/p/Right/Right/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Right",
+    "full_name": "Right-Right-1.0.0",
+    "description": "Right mod",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Shared-Shared-1.10.0"
+    ],
+    "download_url": "__BASE__/package/download/Right/Right/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Shared",
+  "full_name": "Shared-Shared",
+  "owner": "Shared",
+  "package_url": "https://thunderstore.io/c/valheim/p/Shared/Shared/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Libraries"
+  ],
+  "versions": [
+   {
+    "name": "Shared",
+    "full_name": "Shared-Shared-1.10.0",
+    "description": "Shared library",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.10.0",
+    "dependencies": [
+     "denikson-BepInExPack_Valheim-5.4.2351"
+    ],
+    "download_url": "__BASE__/package/download/Shared/Shared/1.10.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   },
+   {
+    "name": "Shared",
+    "full_name": "Shared-Shared-1.2.0",
+    "description": "Shared library",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.2.0",
+    "dependencies": [],
+    "download_url": "__BASE__/package/download/Shared/Shared/1.2.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Spawner2",
+  "full_name": "Old-Spawner2",
+  "owner": "Old",
+  "package_url": "https://thunderstore.io/c/valheim/p/Old/Spawner2/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": true,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Spawner2",
+    "full_name": "Old-Spawner2-0.1.0",
+    "description": "Deprecated spawner",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "0.1.0",
+    "dependencies": [],
+    "download_url": "__BASE__/package/download/Old/Spawner2/0.1.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Alpha",
+  "full_name": "Cyc-Alpha",
+  "owner": "Cyc",
+  "package_url": "https://thunderstore.io/c/valheim/p/Cyc/Alpha/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Alpha",
+    "full_name": "Cyc-Alpha-1.0.0",
+    "description": "cycle a",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Cyc-Beta-1.0.0"
+    ],
+    "download_url": "__BASE__/package/download/Cyc/Alpha/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Beta",
+  "full_name": "Cyc-Beta",
+  "owner": "Cyc",
+  "package_url": "https://thunderstore.io/c/valheim/p/Cyc/Beta/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Beta",
+    "full_name": "Cyc-Beta-1.0.0",
+    "description": "cycle b",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Cyc-Alpha-1.0.0"
+    ],
+    "download_url": "__BASE__/package/download/Cyc/Beta/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ },
+ {
+  "name": "Mod",
+  "full_name": "Broken-Mod",
+  "owner": "Broken",
+  "package_url": "https://thunderstore.io/c/valheim/p/Broken/Mod/",
+  "date_created": "2021-01-01T00:00:00Z",
+  "date_updated": "2026-01-01T00:00:00Z",
+  "uuid4": "u",
+  "rating_score": 1,
+  "is_pinned": false,
+  "is_deprecated": false,
+  "has_nsfw_content": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Mod",
+    "full_name": "Broken-Mod-1.0.0",
+    "description": "depends on nothing real",
+    "icon": "https://ccdn.thunderstore.io/x.png",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "Ghost-Missing-1.0.0"
+    ],
+    "download_url": "__BASE__/package/download/Broken/Mod/1.0.0/",
+    "downloads": 1,
+    "date_created": "2026-01-01T00:00:00Z",
+    "website_url": "",
+    "is_active": true,
+    "uuid4": "u",
+    "file_size": 1000
+   }
+  ]
+ }
+]

@@ -21,6 +21,9 @@ import (
 	"steamcmd-serve/internal/catalog"
 	"steamcmd-serve/internal/instance"
 	"steamcmd-serve/internal/jobs"
+	"steamcmd-serve/internal/mods"
+	"steamcmd-serve/internal/mods/nexus"
+	"steamcmd-serve/internal/mods/thunderstore"
 	"steamcmd-serve/internal/runtime"
 	"steamcmd-serve/internal/secrets"
 	"steamcmd-serve/internal/store"
@@ -81,20 +84,33 @@ func run() error {
 
 	imageRepo := envOr("IMAGE_REPO", "ghcr.io/OWNER")
 	imageTag := envOr("IMAGE_TAG", "latest")
+
+	// Mod providers share one client: no overall timeout (archives can be large),
+	// but connection and response-header timeouts so a stuck server cannot hang a job.
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	modHTTP := &http.Client{Transport: transport}
+	nexusClient := &nexus.Client{HTTP: modHTTP, Version: imageTag}
+	keyring := nexus.NewKeyring(st, box, nexusClient)
+
 	jt := jobs.NewTracker(ctx)
 	svc, err := instance.New(st, rt, catalogGames, jt, instance.Options{
 		DataDir:       dataDir,
 		HostDataRoot:  hostDataRoot,
 		GamesDir:      os.Getenv("GAMES_DIR"),
 		HostGamesRoot: os.Getenv("HOST_GAMES_ROOT"),
-		PUID:         puid,
-		PGID:         pgid,
-		TZ:           os.Getenv("TZ"),
+		PUID:          puid,
+		PGID:          pgid,
+		TZ:            os.Getenv("TZ"),
 		Images: map[string]string{
 			"steamcmd-base": imageRepo + "/steamcmd-base:" + imageTag,
 			"steamcmd-wine": imageRepo + "/steamcmd-wine:" + imageTag,
 		},
 		Secrets: box,
+		ModProviders: map[string]mods.Provider{
+			"thunderstore": thunderstore.New(filepath.Join(dataDir, "cache", "thunderstore"), modHTTP),
+			"nexus":        nexus.NewProvider(keyring.Key, nexusClient),
+		},
 	})
 	if err != nil {
 		return err
@@ -120,7 +136,7 @@ func run() error {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	authn.Register(mux)
-	api.New(svc).Register(mux)
+	api.New(svc).WithNexus(keyring).Register(mux)
 	mux.Handle("/", spa(envOr("UI_DIR", "/ui")))
 
 	srv := &http.Server{

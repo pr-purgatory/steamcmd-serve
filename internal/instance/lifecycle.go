@@ -136,6 +136,26 @@ func (s *Service) finish(id, from, to string, err error) error {
 
 var steamProgress = regexp.MustCompile(`progress: ([0-9.]+) \((\d+) / (\d+)\)`)
 
+// installProgress maps steamcmd's per-phase progress onto one 0..1 scale:
+// downloading fills 0-0.8 and verifying 0.8-1 (steamcmd restarts at 0 for each phase).
+func installProgress(line string) (float64, bool) {
+	mm := steamProgress.FindStringSubmatch(line)
+	if mm == nil {
+		return 0, false
+	}
+	pct, err := strconv.ParseFloat(mm[1], 64)
+	if err != nil {
+		return 0, false
+	}
+	switch {
+	case strings.Contains(line, "downloading"):
+		return 0.8 * pct / 100, true
+	case strings.Contains(line, "verifying"):
+		return 0.8 + 0.2*pct/100, true
+	}
+	return 0, false
+}
+
 // install runs steamcmd app_update in a one-shot job container (ADR 0001 §3).
 func (s *Service) install(ctx context.Context, g *catalog.Game, inst *store.Instance, report jobs.Report) error {
 	m := g.Manifest
@@ -171,10 +191,8 @@ func (s *Service) install(ctx context.Context, g *catalog.Game, inst *store.Inst
 		if strings.Contains(line, "Success! App") {
 			success = true
 		}
-		if mm := steamProgress.FindStringSubmatch(line); mm != nil {
-			if pct, err := strconv.ParseFloat(mm[1], 64); err == nil {
-				report(pct/100, strings.TrimSpace(line))
-			}
+		if p, ok := installProgress(line); ok {
+			report(p, strings.TrimSpace(line))
 		}
 	})
 	switch {
