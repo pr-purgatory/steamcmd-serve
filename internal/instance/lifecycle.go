@@ -154,7 +154,7 @@ func (s *Service) install(ctx context.Context, g *catalog.Game, inst *store.Inst
 			runtime.LabelGame:     m.ID,
 		},
 		Binds: []string{
-			path.Join(s.hostDir(inst.ID), "server") + ":/server",
+			s.hostServerDir(m.ID, inst.ID) + ":/server",
 			path.Join(s.opt.HostDataRoot, "steamcmd") + ":/steamcmd",
 		},
 		StopTimeout: 30,
@@ -314,7 +314,7 @@ func (s *Service) renderConfig(g *catalog.Game, inst *store.Instance) error {
 			return fmt.Errorf("render %s: %w", f.Path, err)
 		}
 	}
-	target, err := s.serverPath(inst.ID, f.Path)
+	target, err := s.serverPath(inst.GameID, inst.ID, f.Path)
 	if err != nil {
 		return err
 	}
@@ -330,7 +330,7 @@ func (s *Service) configDrift(g *catalog.Game, id string) (bool, error) {
 	if f == nil {
 		return false, nil
 	}
-	target, err := s.serverPath(id, f.Path)
+	target, err := s.serverPath(g.Manifest.ID, id, f.Path)
 	if err != nil {
 		return false, err
 	}
@@ -354,8 +354,8 @@ func (s *Service) templateContext(inst *store.Instance, settings catalog.Setting
 }
 
 // serverPath resolves a manifest-relative path inside the instance's install dir.
-func (s *Service) serverPath(id, rel string) (string, error) {
-	base := filepath.Join(s.dir(id), "server")
+func (s *Service) serverPath(gameID, id, rel string) (string, error) {
+	base := s.serverDir(gameID, id)
 	p := filepath.Join(base, filepath.FromSlash(rel))
 	if !strings.HasPrefix(p, base+string(filepath.Separator)) {
 		return "", fmt.Errorf("path %q escapes the install dir", rel)

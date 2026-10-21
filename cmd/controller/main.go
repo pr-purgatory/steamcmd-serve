@@ -83,8 +83,10 @@ func run() error {
 	imageTag := envOr("IMAGE_TAG", "latest")
 	jt := jobs.NewTracker(ctx)
 	svc, err := instance.New(st, rt, catalogGames, jt, instance.Options{
-		DataDir:      dataDir,
-		HostDataRoot: hostDataRoot,
+		DataDir:       dataDir,
+		HostDataRoot:  hostDataRoot,
+		GamesDir:      os.Getenv("GAMES_DIR"),
+		HostGamesRoot: os.Getenv("HOST_GAMES_ROOT"),
 		PUID:         puid,
 		PGID:         pgid,
 		TZ:           os.Getenv("TZ"),

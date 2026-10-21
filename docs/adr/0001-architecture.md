@@ -82,16 +82,26 @@ The controller creates sibling containers, so bind-mount sources must be **host*
 - `DATA_DIR` (inside controller, default `/data`)
 - `HOST_DATA_ROOT` (same directory as the host sees it, e.g. `/mnt/user/appdata/steamcmd-serve`)
 
+Game installs are large (Enshrouded ~13 GB) and often belong on a different share than app data, so they have their own root, defaulting to `<data root>/games`:
+
+- `GAMES_DIR` (inside controller) and `HOST_GAMES_ROOT` (host path, e.g. `/mnt/user/games/steamcmd-serve`)
+
 ```
 <data root>/
   controller.db
+  secret.key                encrypts stored secrets (see §6)
   steamcmd/                 shared steamcmd home (self-update cache)
   instances/<id>/
-    server/                 game install (steamcmd force_install_dir)
     data/                   saves, logs, persisted paths
       wineprefix/           Windows games only (WINEPREFIX=/data/wineprefix)
+      .steamcmd-serve/      last rendered config copies (drift detection)
     backups/
+
+<games root>/
+  <game id>/<instance id>/  game install (steamcmd force_install_dir, mounted at /server)
 ```
+
+Saves are bind-mounted from the data root into the install dir (manifest `persist`), so wiping or moving an install never touches saves or backups.
 
 ### 8. Ports
 

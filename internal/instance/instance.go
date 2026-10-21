@@ -34,12 +34,14 @@ var (
 
 // Options configure a Service.
 type Options struct {
-	DataDir      string            // data root as the controller sees it
-	HostDataRoot string            // same directory as the container engine's host sees it
-	PUID, PGID   int               // ownership of game files inside game containers
-	TZ           string            // passed to game containers
-	Images       map[string]string // manifest runtime image name -> image reference
-	Secrets      *secrets.Box      // encrypts x-secret settings at rest
+	DataDir       string            // data root as the controller sees it
+	HostDataRoot  string            // same directory as the container engine's host sees it
+	GamesDir      string            // game install root as the controller sees it (default DataDir/games)
+	HostGamesRoot string            // same directory on the engine's host (default HostDataRoot/games)
+	PUID, PGID    int               // ownership of game files inside game containers
+	TZ            string            // passed to game containers
+	Images        map[string]string // manifest runtime image name -> image reference
+	Secrets       *secrets.Box      // encrypts x-secret settings at rest
 }
 
 // Service manages instances. It is safe for concurrent use.
@@ -59,8 +61,14 @@ func New(st *store.Store, rt *runtime.Docker, games map[string]*catalog.Game, jt
 	if opt.Secrets == nil {
 		return nil, fmt.Errorf("instance: Options.Secrets is required")
 	}
-	if !filepath.IsAbs(opt.DataDir) || !path.IsAbs(opt.HostDataRoot) {
-		return nil, fmt.Errorf("DATA_DIR and HOST_DATA_ROOT must be absolute paths")
+	if opt.GamesDir == "" {
+		opt.GamesDir = filepath.Join(opt.DataDir, "games")
+	}
+	if opt.HostGamesRoot == "" {
+		opt.HostGamesRoot = path.Join(opt.HostDataRoot, "games")
+	}
+	if !filepath.IsAbs(opt.DataDir) || !path.IsAbs(opt.HostDataRoot) || !filepath.IsAbs(opt.GamesDir) || !path.IsAbs(opt.HostGamesRoot) {
+		return nil, fmt.Errorf("DATA_DIR, HOST_DATA_ROOT, GAMES_DIR and HOST_GAMES_ROOT must be absolute paths")
 	}
 	for _, g := range games {
 		if opt.Images[g.Manifest.Runtime.Image] == "" {
@@ -133,6 +141,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*store.Instanc
 	}
 	if err := s.store.CreateInstance(ctx, inst); err != nil {
 		os.RemoveAll(s.dir(inst.ID))
+		os.RemoveAll(s.serverDir(inst.GameID, inst.ID))
 		return nil, nil, err
 	}
 	return inst, s.preflight(ctx, g, inst), nil
@@ -281,6 +290,9 @@ func (s *Service) Delete(ctx context.Context, id string, deleteData bool) error 
 		return err
 	}
 	if deleteData {
+		if err := os.RemoveAll(s.serverDir(inst.GameID, id)); err != nil {
+			return err
+		}
 		return os.RemoveAll(s.dir(id))
 	}
 	return nil
@@ -309,7 +321,7 @@ func (s *Service) serverSpec(g *catalog.Game, inst *store.Instance) (runtime.Ser
 
 	host := s.hostDir(inst.ID)
 	binds := []string{
-		path.Join(host, "server") + ":/server",
+		s.hostServerDir(m.ID, inst.ID) + ":/server",
 		path.Join(host, "data") + ":/data",
 	}
 	for _, p := range m.Persist {
@@ -368,12 +380,12 @@ func (s *Service) openSettings(g *catalog.Game, inst *store.Instance) (catalog.S
 }
 
 func (s *Service) makeDirs(g *catalog.Game, id string) error {
-	dirs := []string{"server", "data", "backups"}
+	dirs := []string{filepath.Join(s.dir(id), "data"), filepath.Join(s.dir(id), "backups"), s.serverDir(g.Manifest.ID, id)}
 	for _, p := range g.Manifest.Persist {
-		dirs = append(dirs, filepath.Join("data", p.Name))
+		dirs = append(dirs, filepath.Join(s.dir(id), "data", p.Name))
 	}
 	for _, d := range dirs {
-		if err := os.MkdirAll(filepath.Join(s.dir(id), d), 0o775); err != nil {
+		if err := os.MkdirAll(d, 0o775); err != nil {
 			return err
 		}
 	}
@@ -429,8 +441,17 @@ func (s *Service) lock(id string) func() {
 	return mu.Unlock
 }
 
+// dir holds an instance's data (saves, rendered config copies) and backups.
 func (s *Service) dir(id string) string     { return filepath.Join(s.opt.DataDir, "instances", id) }
 func (s *Service) hostDir(id string) string { return path.Join(s.opt.HostDataRoot, "instances", id) }
+
+// serverDir holds an instance's game install: <games root>/<game id>/<instance id>.
+func (s *Service) serverDir(gameID, id string) string {
+	return filepath.Join(s.opt.GamesDir, gameID, id)
+}
+func (s *Service) hostServerDir(gameID, id string) string {
+	return path.Join(s.opt.HostGamesRoot, gameID, id)
+}
 
 func containerName(id string) string { return "steamcmd-serve-" + id }
 

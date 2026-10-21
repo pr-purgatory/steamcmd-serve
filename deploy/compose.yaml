@@ -15,12 +15,17 @@ services:
       # Same directory as seen by the host; derived from the bind source so they cannot diverge.
       HOST_DATA_ROOT: ${DATA_ROOT}
       DOCKER_HOST: unix:///var/run/docker.sock
+      # Game installs default to $DATA_ROOT/games. To put them elsewhere, set GAMES_ROOT
+      # and uncomment the matching volume below.
+      # GAMES_DIR: /games
+      # HOST_GAMES_ROOT: ${GAMES_ROOT}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       TZ: ${TZ:-UTC}
     volumes:
       - ${DATA_ROOT:?set DATA_ROOT}:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      # - ${GAMES_ROOT:?set GAMES_ROOT}:/games
     # Run as PUID:PGID so the controller and game containers own the same files;
     # it also needs the socket's group.
     user: "${PUID:-1000}:${PGID:-1000}"

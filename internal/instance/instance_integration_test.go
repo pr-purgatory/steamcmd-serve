@@ -93,7 +93,8 @@ mods: {loader: none}
 	if err != nil {
 		t.Fatal(err)
 	}
-	opt := Options{DataDir: dataDir, HostDataRoot: dataDir, PUID: 1000, PGID: 1000, Images: map[string]string{"steamcmd-base": image}, Secrets: box}
+	gamesDir := filepath.Join(dataDir, "separate-games-share")
+	opt := Options{DataDir: dataDir, HostDataRoot: dataDir, GamesDir: gamesDir, HostGamesRoot: gamesDir, PUID: 1000, PGID: 1000, Images: map[string]string{"steamcmd-base": image}, Secrets: box}
 	jt := jobs.NewTracker(ctx)
 	svc, err := New(st, rt, gs, jt, opt)
 	if err != nil {
@@ -155,7 +156,7 @@ mods: {loader: none}
 	if j.Status != jobs.Succeeded || state(a.ID).State != store.StateStopped {
 		t.Fatalf("install: job %+v state %s", j, state(a.ID).State)
 	}
-	if _, err := os.Stat(filepath.Join(dataDir, "instances", a.ID, "server", "fake_server")); err != nil {
+	if _, err := os.Stat(filepath.Join(gamesDir, "fake", a.ID, "fake_server")); err != nil {
 		t.Fatalf("install did not write into the instance server dir: %v", err)
 	}
 
@@ -185,7 +186,7 @@ mods: {loader: none}
 	if inst := state(a.ID); inst.State != store.StateRunning || inst.StateDetail != "" {
 		t.Fatalf("after start: %s %q (want running, readiness seen)", inst.State, inst.StateDetail)
 	}
-	cfgRaw, err := os.ReadFile(filepath.Join(dataDir, "instances", a.ID, "server", "cfg", "server.json"))
+	cfgRaw, err := os.ReadFile(filepath.Join(gamesDir, "fake", a.ID, "cfg", "server.json"))
 	var cfg map[string]any
 	if err != nil || json.Unmarshal(cfgRaw, &cfg) != nil || cfg["motd"] != "welcome" || cfg["port"] != 39100.0 {
 		t.Fatalf("rendered config = %q, %v", cfgRaw, err)
@@ -233,7 +234,7 @@ mods: {loader: none}
 	}
 
 	// --- game rewrites its config while running → drift reported on stop ---
-	if err := os.WriteFile(filepath.Join(dataDir, "instances", a.ID, "server", "cfg", "server.json"), []byte(`{}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(gamesDir, "fake", a.ID, "cfg", "server.json"), []byte(`{}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// --- backup while running ---
@@ -304,5 +305,8 @@ mods: {loader: none}
 	}
 	if _, err := os.Stat(filepath.Join(dataDir, "instances", a.ID)); !os.IsNotExist(err) {
 		t.Fatalf("instance dir not deleted: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(gamesDir, "fake", a.ID)); !os.IsNotExist(err) {
+		t.Fatalf("install dir not deleted: %v", err)
 	}
 }
