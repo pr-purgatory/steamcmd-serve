@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done except T4V (blocked) · W4 done
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -18,8 +18,8 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 | Q8 | Enshrouded config source | — | **Official PDFs in `Enshrouded-Server-Docs/`** (facts captured below) |
 | Q9 | Image registry / GitHub owner | `ghcr.io/<owner>` placeholder | assumed |
 | Q10 | x86 test host for E2E | — | **Unraid** |
-| Q11 | Unraid access for E2E: SSH target + appdata path | `ssh root@tower`, `/mnt/user/appdata/steamcmd-serve` | open — `tower` does not resolve; blocks T4V, T17 |
-| Q12 | (unverified: steamcmd segfaults under qemu) SteamCMD AppID for Enshrouded server. 1203620 is the *game*; the dedicated-server tool is believed to be **2278520** (anonymous login) | `app_update 2278520`; keep 1203620 as the Steam game id for display/query | assumed — verified in T5 |
+| Q11 | Unraid access for E2E: SSH target + appdata path | `ssh root@tower`, `/mnt/user/appdata/steamcmd-serve` | **root@<unraid-host>; appdata default; games at /mnt/user/games/steamcmd-serve/<game>/** |
+| Q12 | (verified 2026-10-21 on Unraid: Enshrouded Dedicated Server, windows) SteamCMD AppID for Enshrouded server. 1203620 is the *game*; the dedicated-server tool is believed to be **2278520** (anonymous login) | `app_update 2278520`; keep 1203620 as the Steam game id for display/query | assumed — verified in T5 |
 
 ## Enshrouded reference (from official PDFs, Oct 2026)
 - Windows-only server binary (`enshrouded_server.exe`); "Linux support planned". → Needs Wine on Linux.
@@ -93,7 +93,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T4V — Native amd64 runtime verification (Unraid)
 - Score: 2.5 (eng) · Tier: standard · Executor: subagent
-- Status: blocked (Q11 SSH target; Valve update host `client-download.steampowered.com` → `update.client.steamcontent.akadns.net` NXDOMAIN at Akamai on 2026-10-21)
+- Status: done (all checks pass on Unraid 7.3.2; see docs/verification/runtime-images.md)
 - Depends: T3, T4, T5
 - Wave: 3 · Parallel: no
 - Files: `docs/verification/runtime-images.md` (w), `images/**` (r)

@@ -3,7 +3,7 @@
 id: enshrouded
 name: Enshrouded
 steam:
-  serverAppId: 2278520 # dedicated server tool; app_info_print could not be run (steamcmd segfaults under amd64 emulation), id unverified
+  serverAppId: 2278520 # Enshrouded Dedicated Server tool (windows); verified via app_info_print 2026-10-21
   gameAppId: 1203620
   platform: windows
   anonymous: true
@@ -35,6 +35,6 @@ readiness:
   timeoutSeconds: 900
 resources:
   memoryMB: 8192 # ~4.4 GB idle, +100 MB/player, <=6 GB per FAQ; headroom for Wine
-  diskGB: 30
+  diskGB: 30 # install measured 7.6 GB (2026-10-21); official guidance says keep 30 GB free
 mods:
   loader: none
