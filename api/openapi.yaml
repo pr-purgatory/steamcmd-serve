@@ -188,7 +188,15 @@ paths:
           description: Created
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Instance' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Instance'
+                  - type: object
+                    properties:
+                      warnings:
+                        type: array
+                        description: Preflight warnings (low memory or disk) that do not block creation.
+                        items: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict' }
@@ -237,6 +245,7 @@ paths:
           description: Also delete install, saves and backups on disk.
           schema: { type: boolean, default: false }
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '204': { description: Deleted }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -260,6 +269,7 @@ paths:
         start from stopped or error; stop from starting or running; restart from running.
         Other combinations return 409.
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '202':
           description: Accepted
           content:
@@ -277,6 +287,7 @@ paths:
       operationId: getSettings
       summary: Instance settings (secrets masked)
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '200':
           description: Settings matching the game's settings schema
           content:
@@ -316,6 +327,7 @@ paths:
           in: query
           schema: { type: integer, minimum: 0, maximum: 5000, default: 500 }
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '200':
           description: 'SSE stream; each event `data:` is one log line, event `state` carries instance state changes.'
           content:
@@ -332,6 +344,7 @@ paths:
       operationId: listBackups
       summary: List backups
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '200':
           description: Backups, newest first
           content:
@@ -346,6 +359,7 @@ paths:
       operationId: createBackup
       summary: Back up persisted paths marked backup:true
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '202':
           description: Accepted
           content:
@@ -367,6 +381,7 @@ paths:
       operationId: restoreBackup
       summary: Restore a backup into a stopped instance (current data is backed up first)
       responses:
+        '400': { $ref: '#/components/responses/BadRequest' }
         '202':
           description: Accepted
           content:

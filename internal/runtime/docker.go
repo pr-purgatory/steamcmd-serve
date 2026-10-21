@@ -3,13 +3,18 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
+	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/api/types/container"
 	"github.com/moby/moby/api/types/network"
 	"github.com/moby/moby/client"
@@ -127,6 +132,7 @@ type ServerSpec struct {
 	MemoryBytes int64
 	StopSignal  string
 	StopTimeout int
+	Restart     bool // restart unless stopped (servers); jobs run once
 }
 
 // Create creates (but does not start) a container, pulling the image if missing.
@@ -151,6 +157,10 @@ func (d *Docker) Create(ctx context.Context, s ServerSpec) (string, error) {
 		bindings[p] = []network.PortBinding{{HostIP: netip.IPv4Unspecified(), HostPort: strconv.Itoa(b.Port)}}
 	}
 	timeout := s.StopTimeout
+	restart := container.RestartPolicy{Name: container.RestartPolicyDisabled}
+	if s.Restart {
+		restart.Name = container.RestartPolicyUnlessStopped
+	}
 	res, err := d.cli.ContainerCreate(ctx, client.ContainerCreateOptions{
 		Name: s.Name,
 		Config: &container.Config{
@@ -165,7 +175,7 @@ func (d *Docker) Create(ctx context.Context, s ServerSpec) (string, error) {
 		HostConfig: &container.HostConfig{
 			Binds:         s.Binds,
 			PortBindings:  bindings,
-			RestartPolicy: container.RestartPolicy{Name: container.RestartPolicyUnlessStopped},
+			RestartPolicy: restart,
 			Resources:     container.Resources{Memory: s.MemoryBytes},
 		},
 	})
@@ -228,4 +238,59 @@ func (d *Docker) ensureImage(ctx context.Context, ref string) error {
 		return fmt.Errorf("pull %s: %w", ref, err)
 	}
 	return nil
+}
+
+// LogOptions select which log lines FollowLogs delivers.
+type LogOptions struct {
+	Tail   int  // lines of history; -1 for all
+	Follow bool // keep streaming until the container stops or ctx is done
+	Since  time.Time
+}
+
+// FollowLogs calls onLine for each stdout/stderr line of the container. It returns when
+// the stream ends (container stopped, or Follow is false), ctx is done, or onLine errors.
+func (d *Docker) FollowLogs(ctx context.Context, id string, o LogOptions, onLine func(string) error) error {
+	opts := client.ContainerLogsOptions{ShowStdout: true, ShowStderr: true, Follow: o.Follow, Tail: "all"}
+	if o.Tail >= 0 {
+		opts.Tail = strconv.Itoa(o.Tail)
+	}
+	if !o.Since.IsZero() {
+		opts.Since = strconv.FormatInt(o.Since.Unix(), 10)
+	}
+	rc, err := d.cli.ContainerLogs(ctx, id, opts)
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+	pr, pw := io.Pipe()
+	go func() {
+		_, err := stdcopy.StdCopy(pw, pw, rc)
+		pw.CloseWithError(err)
+	}()
+	defer pr.Close()
+	sc := bufio.NewScanner(pr)
+	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	for sc.Scan() {
+		if err := onLine(strings.TrimRight(sc.Text(), "\r")); err != nil {
+			return err
+		}
+	}
+	if err := sc.Err(); err != nil && ctx.Err() == nil {
+		return err
+	}
+	return ctx.Err()
+}
+
+// Wait blocks until the container exits and returns its exit code.
+func (d *Docker) Wait(ctx context.Context, id string) (int64, error) {
+	res := d.cli.ContainerWait(ctx, id, client.ContainerWaitOptions{Condition: container.WaitConditionNotRunning})
+	select {
+	case r := <-res.Result:
+		if r.Error != nil && r.Error.Message != "" {
+			return r.StatusCode, fmt.Errorf("wait: %s", r.Error.Message)
+		}
+		return r.StatusCode, nil
+	case err := <-res.Error:
+		return -1, err
+	}
 }

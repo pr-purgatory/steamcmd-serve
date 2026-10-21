@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done except T4V (blocked)
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done except T4V (blocked) · W4 done
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -143,7 +143,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T7 — Install/update orchestration, logs, readiness, backups
 - Score: 3.5 (sr) · Tier: strong · Executor: main
-- Status: todo
+- Status: done (job containers, readiness, config render + drift, logs, backups/restore, crash reconcile; Podman integration test with fake runtime)
 - Depends: T6, T4, T5
 - Wave: 4 · Parallel: no
 - Files: `internal/jobs/**` (w), `internal/instance/**` (w; extend Service: install/update jobs, `starting` state + readiness, config render in Start), `internal/backup/**` (w), `internal/logs/**` (w)
@@ -153,7 +153,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T8 — REST handlers per OpenAPI
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (all routes, kin-openapi response validation, SSE)
 - Depends: T6
 - Wave: 4 · Parallel: yes
 - Files: `internal/api/**` (w), `api/openapi.yaml` (r)
@@ -163,7 +163,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T9 — Auth + secret handling
 - Score: 3.5 (sr) · Tier: strong · Executor: main
-- Status: todo
+- Status: done (argon2id admin, sessions, CSRF, login rate limit, trusted proxies; x-secret masking by x-key + AES-GCM at rest)
 - Depends: T6
 - Wave: 4 · Parallel: no
 - Files: `internal/auth/**` (w), `internal/secrets/**` (w), `internal/api/middleware.go` (w)
@@ -173,7 +173,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T10b — Schema-driven config editor
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (schema-driven form, Ajv validation, 39 web tests)
 - Depends: T5, T10a
 - Wave: 4 · Parallel: yes
 - Files: `web/src/lib/config-form/**` (w), `games/enshrouded/settings.schema.json` (r)

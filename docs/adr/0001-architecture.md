@@ -106,7 +106,7 @@ Enshrouded declares `mods.loader: none` until a server-side mod scene exists; Va
 ### 10. Stack
 
 - Go (single static binary), SQLite via `modernc.org/sqlite` (no cgo, cross-compiles).
-- Svelte + Vite UI, built to `web/dist`, embedded with `go:embed`.
+- Svelte + Vite UI, built to `web/dist` and served by the controller from `UI_DIR` (the image copies it to `/ui`). Not `go:embed`: `web/dist` is a build output, and embedding it would make `go build` fail on a fresh checkout.
 - REST + SSE (logs, job progress), described in `api/openapi.yaml`.
 - Optional stretch client: Wails wrapping the same web UI.
 

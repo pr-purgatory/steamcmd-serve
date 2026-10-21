@@ -68,6 +68,17 @@ var migrations = []string{
 		PRIMARY KEY (instance_id, name),
 		UNIQUE (port, protocol)
 	);`,
+	`CREATE TABLE users (
+		username      TEXT PRIMARY KEY COLLATE NOCASE,
+		password_hash TEXT NOT NULL,
+		created_at    TEXT NOT NULL
+	);
+	CREATE TABLE sessions (
+		token_hash TEXT PRIMARY KEY,
+		username   TEXT NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+		csrf_token TEXT NOT NULL,
+		expires_at INTEGER NOT NULL
+	);`,
 }
 
 // Open opens (creating if needed) and migrates the database at path.
@@ -156,6 +167,31 @@ func (s *Store) SetState(ctx context.Context, id, state, detail string) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// Transition moves an instance to state `to` only if its current state is one of from.
+// It returns ErrNotFound for unknown ids and ErrConflict (naming the current state)
+// otherwise. This is the concurrency guard for lifecycle operations.
+func (s *Store) Transition(ctx context.Context, id string, from []string, to, detail string) error {
+	q := `UPDATE instances SET state = ?, state_detail = ? WHERE id = ? AND state IN (?` + strings.Repeat(",?", len(from)-1) + `)`
+	args := []any{to, detail, id}
+	for _, f := range from {
+		args = append(args, f)
+	}
+	res, err := s.db.ExecContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 1 {
+		return nil
+	}
+	var cur string
+	if err := s.db.QueryRowContext(ctx, `SELECT state FROM instances WHERE id = ?`, id).Scan(&cur); errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	return fmt.Errorf("%w: instance is %s", ErrConflict, cur)
 }
 
 // DeleteInstance removes the instance and its ports.
@@ -280,5 +316,78 @@ func conflict(err error) error {
 	if err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed") {
 		return fmt.Errorf("%w: %v", ErrConflict, err)
 	}
+	return err
+}
+
+// Session is a logged-in browser session. Only a hash of the cookie token is stored.
+type Session struct {
+	TokenHash string
+	Username  string
+	CSRFToken string
+	ExpiresAt time.Time
+}
+
+// CreateFirstUser creates the admin, but only while no user exists (ErrConflict otherwise).
+func (s *Store) CreateFirstUser(ctx context.Context, username, passwordHash string) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		var n int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&n); err != nil {
+			return err
+		}
+		if n > 0 {
+			return fmt.Errorf("%w: setup already completed", ErrConflict)
+		}
+		_, err := tx.ExecContext(ctx, `INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)`,
+			username, passwordHash, time.Now().UTC().Format(time.RFC3339))
+		return err
+	})
+}
+
+// UserCount returns the number of users.
+func (s *Store) UserCount(ctx context.Context) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&n)
+	return n, err
+}
+
+// PasswordHash returns a user's password hash and canonical username.
+func (s *Store) PasswordHash(ctx context.Context, username string) (string, string, error) {
+	var name, hash string
+	err := s.db.QueryRowContext(ctx, `SELECT username, password_hash FROM users WHERE username = ?`, username).Scan(&name, &hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", ErrNotFound
+	}
+	return name, hash, err
+}
+
+// CreateSession stores a session and removes expired ones.
+func (s *Store) CreateSession(ctx context.Context, sess Session) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < ?`, time.Now().Unix()); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO sessions (token_hash, username, csrf_token, expires_at) VALUES (?, ?, ?, ?)`,
+		sess.TokenHash, sess.Username, sess.CSRFToken, sess.ExpiresAt.Unix())
+	return err
+}
+
+// GetSession returns an unexpired session (ErrNotFound otherwise).
+func (s *Store) GetSession(ctx context.Context, tokenHash string) (*Session, error) {
+	var sess Session
+	var exp int64
+	err := s.db.QueryRowContext(ctx, `SELECT token_hash, username, csrf_token, expires_at FROM sessions WHERE token_hash = ? AND expires_at >= ?`,
+		tokenHash, time.Now().Unix()).Scan(&sess.TokenHash, &sess.Username, &sess.CSRFToken, &exp)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	sess.ExpiresAt = time.Unix(exp, 0)
+	return &sess, nil
+}
+
+// DeleteSession removes a session.
+func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash)
 	return err
 }

@@ -806,7 +806,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Instance"];
+                    "application/json": components["schemas"]["Instance"] & {
+                        /** @description Preflight warnings (low memory or disk) that do not block creation. */
+                        warnings?: string[];
+                    };
                 };
             };
             400: components["responses"]["BadRequest"];

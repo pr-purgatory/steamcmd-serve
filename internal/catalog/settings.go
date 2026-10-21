@@ -51,11 +51,7 @@ func (g *Game) CompleteSettings(in Settings) (Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	schema, err := DecodeSettings(g.SettingsRaw)
-	if err != nil {
-		return nil, err
-	}
-	completed, err := complete(schema, out)
+	completed, err := complete(deepCopy(g.settingsDoc).(map[string]any), out)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,9 @@
  * All payloads are typed from the generated schema.
  */
 import type { components } from './schema';
+import enshroudedSchema from '../../../../games/enshrouded/settings.schema.json';
+import valheimSchema from '../../../../games/valheim/settings.schema.json';
+import { defaultsFor, isPlaceholder, type Json, type Schema } from '../config-form/logic.ts';
 
 type S = components['schemas'];
 
@@ -40,6 +43,75 @@ export const mockGames: S['Game'][] = [
 		resources: { memoryMB: 4096, diskGB: 6 }
 	}
 ];
+
+const settingsSchemas: Record<string, Schema> = {
+	enshrouded: enshroudedSchema as unknown as Schema,
+	valheim: valheimSchema as unknown as Schema
+};
+
+/** Mock-stored settings per instance id (real values; secrets are masked on read). */
+const storedSettings = new Map<string, Record<string, Json>>();
+const MOCK_SECRET = 'mock-secret-0123456789';
+
+function maskSecrets(schema: Schema, v: Json): Json {
+	if (schema['x-secret']) return { hasValue: true };
+	if (Array.isArray(v) && schema.items) return v.map((x) => maskSecrets(schema.items as Schema, x));
+	if (v && typeof v === 'object' && !Array.isArray(v) && schema.properties) {
+		const out: Record<string, Json> = {};
+		for (const [k, x] of Object.entries(v)) {
+			const ps = schema.properties[k];
+			out[k] = ps ? maskSecrets(ps, x) : x;
+		}
+		return out;
+	}
+	return v;
+}
+
+/** Replace {hasValue:true} by the stored value at the same path (arrays by index). */
+function unmaskSecrets(schema: Schema, v: Json, old: Json | undefined): Json {
+	if (schema['x-secret']) return isPlaceholder(v) ? (old ?? MOCK_SECRET) : v;
+	if (Array.isArray(v) && schema.items) {
+		const o = Array.isArray(old) ? old : [];
+		return v.map((x, i) => unmaskSecrets(schema.items as Schema, x, o[i]));
+	}
+	if (v && typeof v === 'object' && !Array.isArray(v) && schema.properties) {
+		const o = (old && typeof old === 'object' && !Array.isArray(old) ? old : {}) as Record<string, Json>;
+		const out: Record<string, Json> = {};
+		for (const [k, x] of Object.entries(v)) {
+			const ps = schema.properties[k];
+			out[k] = ps ? unmaskSecrets(ps, x, o[k]) : x;
+		}
+		return out;
+	}
+	return v;
+}
+
+function currentSettings(inst: S['Instance']): Record<string, Json> {
+	let cur = storedSettings.get(inst.id);
+	if (!cur) {
+		// Defaults, with every secret filled so it reads back as {hasValue:true}.
+		const schema = settingsSchemas[inst.gameId];
+		cur = unmaskSecrets(schema, maskSecrets(schema, defaultsFor(schema)), undefined) as Record<string, Json>;
+		storedSettings.set(inst.id, cur);
+	}
+	return cur;
+}
+
+/** Loose validation: object shape, known keys, basic types and enums at the top level. */
+function looseValidate(schema: Schema, body: unknown): string | null {
+	if (!body || typeof body !== 'object' || Array.isArray(body)) return 'Settings must be an object';
+	for (const [k, v] of Object.entries(body as Record<string, unknown>)) {
+		const ps = schema.properties?.[k];
+		if (!ps) return `Unknown setting "${k}"`;
+		if (ps.enum && !ps.enum.includes(v as Json)) return `${k}: must be one of ${ps.enum.join(', ')}`;
+		if (ps.type === 'integer' && !Number.isInteger(v)) return `${k}: must be an integer`;
+		if (ps.type === 'number' && typeof v !== 'number') return `${k}: must be a number`;
+		if (ps.type === 'string' && typeof v !== 'string') return `${k}: must be a string`;
+		if (ps.type === 'boolean' && typeof v !== 'boolean') return `${k}: must be a boolean`;
+		if (ps.type === 'array' && !Array.isArray(v)) return `${k}: must be an array`;
+	}
+	return null;
+}
 
 const instances: S['Instance'][] = [
 	{
@@ -200,7 +272,7 @@ export async function mockFetch(request: Request): Promise<Response> {
 	if (m && method === 'GET') {
 		const g = mockGames.find((x) => x.id === m![1]);
 		if (!g) return err(404, 'not_found', 'Game not found');
-		const detail: S['GameDetail'] = { ...g, settingsSchema: {} };
+		const detail: S['GameDetail'] = { ...g, settingsSchema: settingsSchemas[g.id] ?? {} };
 		return json(200, detail);
 	}
 
@@ -249,6 +321,21 @@ export async function mockFetch(request: Request): Promise<Response> {
 		const inst = instances.find((i) => i.id === m![1]);
 		if (!inst) return err(404, 'not_found', 'Instance not found');
 		return runAction(inst, m[2]);
+	}
+	m = path.match(/^\/instances\/([^/]+)\/settings$/);
+	if (m) {
+		const inst = instances.find((i) => i.id === m![1]);
+		if (!inst) return err(404, 'not_found', 'Instance not found');
+		const schema = settingsSchemas[inst.gameId];
+		if (method === 'GET') return json(200, maskSecrets(schema, currentSettings(inst)));
+		if (method === 'PUT') {
+			const body = (await request.json()) as Json;
+			const bad = looseValidate(schema, body);
+			if (bad) return err(400, 'invalid', bad);
+			const stored = unmaskSecrets(schema, body, currentSettings(inst)) as Record<string, Json>;
+			storedSettings.set(inst.id, stored);
+			return json(200, maskSecrets(schema, stored));
+		}
 	}
 	m = path.match(/^\/instances\/([^/]+)$/);
 	if (m) {

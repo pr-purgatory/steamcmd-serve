@@ -62,7 +62,7 @@
 		{ action: 'stop', label: 'Stop', enabled: (i) => canStop(i.state) },
 		{ action: 'restart', label: 'Restart', enabled: (i) => canRestart(i.state) }
 	];
-	const sections = ['Settings', 'Logs', 'Backups', 'Mods'];
+	const sections = ['Logs', 'Backups', 'Mods'];
 </script>
 
 <svelte:head><title>{inst?.name ?? 'Instance'} - steamcmd-serve</title></svelte:head>
@@ -124,6 +124,7 @@
 	<section class="card" aria-labelledby="more">
 		<h2 id="more">More</h2>
 		<ul class="row more">
+			<li><a class="linkbtn" href={resolve('/instances/[id]/settings', { id })}>Settings</a></li>
 			{#each sections as s (s)}
 				<li><span class="placeholder" aria-disabled="true">{s} (coming soon)</span></li>
 			{/each}
@@ -157,6 +158,13 @@
 		list-style: none;
 		padding: 0;
 		margin: 0;
+	}
+	.linkbtn {
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		padding: 0.4rem 0.8rem;
+		display: inline-block;
+		text-decoration: none;
 	}
 	.placeholder {
 		color: var(--muted);

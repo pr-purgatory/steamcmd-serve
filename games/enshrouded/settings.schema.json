@@ -444,6 +444,7 @@
       "title": "User groups",
       "description": "Permission groups, each protected by a password. Group names must be unique (not enforceable in the schema; the controller checks). Passwords are secrets.",
       "type": "array",
+      "x-key": "name",
       "minItems": 1,
       "items": {
         "type": "object",

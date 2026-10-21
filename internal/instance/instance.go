@@ -8,12 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -23,6 +21,7 @@ import (
 	"steamcmd-serve/internal/jobs"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/runtime"
+	"steamcmd-serve/internal/secrets"
 	"steamcmd-serve/internal/store"
 )
 
@@ -40,6 +39,7 @@ type Options struct {
 	PUID, PGID   int               // ownership of game files inside game containers
 	TZ           string            // passed to game containers
 	Images       map[string]string // manifest runtime image name -> image reference
+	Secrets      *secrets.Box      // encrypts x-secret settings at rest
 }
 
 // Service manages instances. It is safe for concurrent use.
@@ -56,6 +56,9 @@ type Service struct {
 
 // New validates opt and returns a Service.
 func New(st *store.Store, rt *runtime.Docker, games map[string]*catalog.Game, jt *jobs.Tracker, opt Options) (*Service, error) {
+	if opt.Secrets == nil {
+		return nil, fmt.Errorf("instance: Options.Secrets is required")
+	}
 	if !filepath.IsAbs(opt.DataDir) || !path.IsAbs(opt.HostDataRoot) {
 		return nil, fmt.Errorf("DATA_DIR and HOST_DATA_ROOT must be absolute paths")
 	}
@@ -92,7 +95,7 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (*store.Instanc
 	if err != nil {
 		return nil, nil, invalid(err)
 	}
-	rawSettings, err := json.Marshal(settings)
+	rawSettings, err := s.sealSettings(g, settings)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -167,7 +170,7 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRequest) (*st
 	s.allocMu.Lock()
 	defer s.allocMu.Unlock()
 	if req.Ports != nil {
-		if active(inst.State) {
+		if !resting(inst.State) {
 			return nil, fmt.Errorf("%w: stop the instance before changing ports", ErrConflict)
 		}
 		g := s.games[inst.GameID]
@@ -203,16 +206,25 @@ func (s *Service) Update(ctx context.Context, id string, req UpdateRequest) (*st
 	return inst, nil
 }
 
-// Settings returns an instance's stored settings.
+// Settings returns an instance's settings with secrets masked as {"hasValue": bool}.
 func (s *Service) Settings(ctx context.Context, id string) (catalog.Settings, error) {
 	inst, err := s.store.GetInstance(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return catalog.DecodeSettings(inst.Settings)
+	g := s.games[inst.GameID]
+	if g == nil {
+		return nil, fmt.Errorf("game %q no longer available", inst.GameID)
+	}
+	settings, err := s.openSettings(g, inst)
+	if err != nil {
+		return nil, err
+	}
+	return g.MaskSecrets(settings), nil
 }
 
-// SetSettings validates and stores settings; they apply on the next start.
+// SetSettings validates and stores settings; they apply on the next start. Secrets sent
+// back as {"hasValue": true} keep their stored value. Returns the masked result.
 func (s *Service) SetSettings(ctx context.Context, id string, in catalog.Settings) (catalog.Settings, error) {
 	unlock := s.lock(id)
 	defer unlock()
@@ -224,17 +236,21 @@ func (s *Service) SetSettings(ctx context.Context, id string, in catalog.Setting
 	if g == nil {
 		return nil, fmt.Errorf("game %q no longer available", inst.GameID)
 	}
-	settings, err := g.CompleteSettings(in)
+	stored, err := s.openSettings(g, inst)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := g.CompleteSettings(g.MergeSecrets(in, stored))
 	if err != nil {
 		return nil, invalid(err)
 	}
-	if inst.Settings, err = json.Marshal(settings); err != nil {
+	if inst.Settings, err = s.sealSettings(g, settings); err != nil {
 		return nil, err
 	}
 	if err := s.store.UpdateInstance(ctx, inst); err != nil {
 		return nil, err
 	}
-	return settings, nil
+	return g.MaskSecrets(settings), nil
 }
 
 // Get returns one instance.
@@ -255,8 +271,8 @@ func (s *Service) Delete(ctx context.Context, id string, deleteData bool) error 
 	if err != nil {
 		return err
 	}
-	if active(inst.State) {
-		return fmt.Errorf("%w: stop the instance first", ErrConflict)
+	if !resting(inst.State) {
+		return fmt.Errorf("%w: instance is %s", ErrConflict, inst.State)
 	}
 	if err := s.rt.Remove(ctx, containerName(id)); err != nil {
 		return err
@@ -270,121 +286,13 @@ func (s *Service) Delete(ctx context.Context, id string, deleteData bool) error 
 	return nil
 }
 
-// Start (re)creates the server container from current settings and starts it.
-func (s *Service) Start(ctx context.Context, id string) error {
-	unlock := s.lock(id)
-	defer unlock()
-	inst, err := s.store.GetInstance(ctx, id)
-	if err != nil {
-		return err
-	}
-	switch inst.State {
-	case store.StateStopped, store.StateError:
-	case store.StateNew:
-		return fmt.Errorf("%w: install the instance first", ErrConflict)
-	default:
-		return fmt.Errorf("%w: instance is %s", ErrConflict, inst.State)
-	}
-	g := s.games[inst.GameID]
-	if g == nil {
-		return fmt.Errorf("game %q no longer available", inst.GameID)
-	}
-	spec, err := s.serverSpec(g, inst)
-	if err != nil {
-		return s.fail(ctx, id, err)
-	}
-	if err := s.rt.Remove(ctx, spec.Name); err != nil {
-		return s.fail(ctx, id, err)
-	}
-	cid, err := s.rt.Create(ctx, spec)
-	if err != nil {
-		return s.fail(ctx, id, err)
-	}
-	if err := s.rt.Start(ctx, cid); err != nil {
-		if strings.Contains(err.Error(), "address already in use") || strings.Contains(err.Error(), "port is already allocated") {
-			s.rt.Remove(ctx, cid)
-			return s.fail(ctx, id, fmt.Errorf("%w: a host port is already in use: %v", ErrConflict, err))
-		}
-		return s.fail(ctx, id, err)
-	}
-	return s.store.SetState(ctx, id, store.StateRunning, "")
-}
-
-// Stop stops the server container using the manifest's stop signal and timeout.
-func (s *Service) Stop(ctx context.Context, id string) error {
-	unlock := s.lock(id)
-	defer unlock()
-	inst, err := s.store.GetInstance(ctx, id)
-	if err != nil {
-		return err
-	}
-	if !active(inst.State) {
-		return fmt.Errorf("%w: instance is %s", ErrConflict, inst.State)
-	}
-	if err := s.store.SetState(ctx, id, store.StateStopping, ""); err != nil {
-		return err
-	}
-	if err := s.rt.Stop(ctx, containerName(id)); err != nil {
-		return s.fail(ctx, id, err)
-	}
-	return s.store.SetState(ctx, id, store.StateStopped, "")
-}
-
-// Reconcile aligns stored states with the containers actually on the engine. Run it at
-// startup: containers outlive the controller (ADR 0001 §2).
-func (s *Service) Reconcile(ctx context.Context) error {
-	containers, err := s.rt.Managed(ctx)
-	if err != nil {
-		return err
-	}
-	running := map[string]bool{}
-	known := map[string]bool{}
-	list, err := s.store.ListInstances(ctx)
-	if err != nil {
-		return err
-	}
-	for _, inst := range list {
-		known[inst.ID] = true
-	}
-	for _, c := range containers {
-		if !known[c.InstanceID] {
-			slog.Warn("managed container without instance; leaving it alone", "container", c.Name, "instance", c.InstanceID)
-			continue
-		}
-		if c.Role == runtime.RoleServer && c.Running {
-			running[c.InstanceID] = true
-		}
-	}
-	for _, inst := range list {
-		var want string
-		switch {
-		case running[inst.ID]:
-			want = store.StateRunning
-		case active(inst.State):
-			want = store.StateStopped
-		default:
-			continue
-		}
-		if want != inst.State {
-			slog.Info("reconciled instance state", "instance", inst.ID, "from", inst.State, "to", want)
-			if err := s.store.SetState(ctx, inst.ID, want, ""); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func (s *Service) serverSpec(g *catalog.Game, inst *store.Instance) (runtime.ServerSpec, error) {
 	m := g.Manifest
-	settings, err := catalog.DecodeSettings(inst.Settings)
+	settings, err := s.openSettings(g, inst)
 	if err != nil {
 		return runtime.ServerSpec{}, err
 	}
-	tctx := catalog.TemplateContext{Settings: settings, Ports: map[string]int{}, Paths: catalog.Paths{Server: "/server", Data: "/data"}}
-	for _, b := range inst.Ports {
-		tctx.Ports[b.Name] = b.Port
-	}
+	tctx := s.templateContext(inst, settings)
 	args, err := g.LaunchCommand(tctx)
 	if err != nil {
 		return runtime.ServerSpec{}, err
@@ -394,14 +302,9 @@ func (s *Service) serverSpec(g *catalog.Game, inst *store.Instance) (runtime.Ser
 		workdir = "."
 	}
 
-	env := map[string]string{}
+	env := s.baseEnv()
 	for k, v := range m.Runtime.Env {
 		env[k] = v
-	}
-	env["PUID"] = strconv.Itoa(s.opt.PUID)
-	env["PGID"] = strconv.Itoa(s.opt.PGID)
-	if s.opt.TZ != "" {
-		env["TZ"] = s.opt.TZ
 	}
 
 	host := s.hostDir(inst.ID)
@@ -429,7 +332,39 @@ func (s *Service) serverSpec(g *catalog.Game, inst *store.Instance) (runtime.Ser
 		MemoryBytes: int64(inst.MemoryMB) << 20,
 		StopSignal:  m.Launch.StopSignal,
 		StopTimeout: m.Launch.StopTimeoutSeconds,
+		Restart:     true,
 	}, nil
+}
+
+// sealSettings encodes settings for storage with secret values encrypted.
+func (s *Service) sealSettings(g *catalog.Game, settings catalog.Settings) ([]byte, error) {
+	return json.Marshal(g.MapSecrets(settings, func(v any) any {
+		if str, ok := v.(string); ok {
+			return s.opt.Secrets.Seal(str)
+		}
+		return v
+	}))
+}
+
+// openSettings decodes stored settings and decrypts secret values.
+func (s *Service) openSettings(g *catalog.Game, inst *store.Instance) (catalog.Settings, error) {
+	settings, err := catalog.DecodeSettings(inst.Settings)
+	if err != nil {
+		return nil, err
+	}
+	var openErr error
+	out := g.MapSecrets(settings, func(v any) any {
+		str, ok := v.(string)
+		if !ok {
+			return v
+		}
+		pt, err := s.opt.Secrets.Open(str)
+		if err != nil && openErr == nil {
+			openErr = err
+		}
+		return pt
+	})
+	return out, openErr
 }
 
 func (s *Service) makeDirs(g *catalog.Game, id string) error {
@@ -487,13 +422,6 @@ func (s *Service) takenPorts(ctx context.Context, exclude string) (map[ports.Key
 	return taken, nil
 }
 
-func (s *Service) fail(ctx context.Context, id string, err error) error {
-	if serr := s.store.SetState(ctx, id, store.StateError, err.Error()); serr != nil {
-		slog.Error("record instance error", "instance", id, "err", serr)
-	}
-	return err
-}
-
 func (s *Service) lock(id string) func() {
 	m, _ := s.locks.LoadOrStore(id, &sync.Mutex{})
 	mu := m.(*sync.Mutex)
@@ -505,6 +433,15 @@ func (s *Service) dir(id string) string     { return filepath.Join(s.opt.DataDir
 func (s *Service) hostDir(id string) string { return path.Join(s.opt.HostDataRoot, "instances", id) }
 
 func containerName(id string) string { return "steamcmd-serve-" + id }
+
+// resting states have no job or container transition in flight.
+func resting(state string) bool {
+	switch state {
+	case store.StateNew, store.StateStopped, store.StateError:
+		return true
+	}
+	return false
+}
 
 func active(state string) bool {
 	switch state {

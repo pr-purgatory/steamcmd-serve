@@ -88,6 +88,7 @@ type Game struct {
 	Manifest       Manifest
 	SettingsSchema *jsonschema.Schema
 	SettingsRaw    json.RawMessage // served to the UI for form generation
+	settingsDoc    map[string]any  // parsed SettingsRaw, for defaults and secret handling
 	ConfigTemplate *template.Template
 	LaunchArgs     []*template.Template
 	Ready          *regexp.Regexp
@@ -166,6 +167,9 @@ func loadGame(fsys fs.FS, dir string, schema *jsonschema.Schema) (*Game, error) 
 		return nil, fmt.Errorf("settings schema: %w", err)
 	}
 	if g.SettingsSchema, err = compileFromFS(fsys, schemaPath, "game:///"+schemaPath); err != nil {
+		return nil, fmt.Errorf("settings schema: %w", err)
+	}
+	if g.settingsDoc, err = DecodeSettings(g.SettingsRaw); err != nil {
 		return nil, fmt.Errorf("settings schema: %w", err)
 	}
 

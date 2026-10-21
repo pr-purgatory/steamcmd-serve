@@ -66,6 +66,15 @@ func TestInstanceLifecycle(t *testing.T) {
 		t.Fatalf("failed update must roll back, port = %d", got.Ports[0].Port)
 	}
 
+	if err := s.Transition(ctx, "a", []string{StateStopped, StateError}, StateStarting, ""); !errors.Is(err, ErrConflict) {
+		t.Fatalf("transition from wrong state: want ErrConflict, got %v", err)
+	}
+	if err := s.Transition(ctx, "zzz", []string{StateNew}, StateInstalling, ""); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("transition unknown: want ErrNotFound, got %v", err)
+	}
+	if err := s.Transition(ctx, "a", []string{StateNew, StateError}, StateInstalling, ""); err != nil {
+		t.Fatal(err)
+	}
 	if err := s.SetState(ctx, "a", StateStopped, ""); err != nil {
 		t.Fatal(err)
 	}

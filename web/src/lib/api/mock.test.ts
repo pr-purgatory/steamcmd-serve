@@ -36,4 +36,19 @@ describe('mock API', () => {
 		expect(response.status).toBe(409);
 		expect(error?.code).toBe('port_in_use');
 	});
+
+	it('serves real settings schemas and masks secrets', async () => {
+		const c = mockClient();
+		await c.POST('/auth/login', { body: { username: 'a', password: 'b' } });
+		const g = await c.GET('/games/{gameId}', { params: { path: { gameId: 'enshrouded' } } });
+		expect((g.data?.settingsSchema as { title?: string }).title).toBe('Enshrouded server settings');
+		const s = await c.GET('/instances/{instanceId}/settings', { params: { path: { instanceId: 'inst-1' } } });
+		const groups = (s.data as { userGroups: { password: unknown }[] }).userGroups;
+		expect(groups[0].password).toEqual({ hasValue: true });
+		const bad = await c.PUT('/instances/{instanceId}/settings', {
+			params: { path: { instanceId: 'inst-1' } },
+			body: { nope: 1 }
+		});
+		expect(bad.response.status).toBe(400);
+	});
 });

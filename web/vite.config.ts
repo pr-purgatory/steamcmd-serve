@@ -15,6 +15,8 @@ export default defineConfig({
 		})
 	],
 	server: {
+		// the dev-only mock imports the games' settings schemas from the repo root
+		fs: { allow: ['..'] },
 		proxy: {
 			'/api': 'http://localhost:8080',
 			'/healthz': 'http://localhost:8080'
