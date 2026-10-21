@@ -39,3 +39,5 @@ export const canStop = (s: InstanceState) => s === 'running' || s === 'starting'
 export const canRestart = (s: InstanceState) => s === 'running';
 export const canInstall = (s: InstanceState) => s === 'new' || s === 'error';
 export const canUpdate = (s: InstanceState) => s === 'stopped';
+/** Restoring a backup needs the server stopped (or crashed). */
+export const canRestore = (s: InstanceState) => s === 'stopped' || s === 'error';

@@ -134,6 +134,11 @@
       "required": ["loader"],
       "properties": {
         "loader": { "enum": ["none", "bepinex"] },
+        "env": {
+          "description": "Extra server environment applied only while mods are installed (e.g. BepInEx doorstop variables). Overrides runtime.env keys.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
         "providers": {
           "type": "array",
           "items": {

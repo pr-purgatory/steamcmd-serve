@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -183,7 +183,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T10c — Live log / console view
 - Score: 2.5 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (logs SSE view + backups page; 56 web tests)
 - Depends: T8, T10a
 - Wave: 5 · Parallel: yes
 - Files: `web/src/routes/instances/[id]/logs/**` (w)
@@ -193,7 +193,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T11 — Mod framework
 - Score: 4 (sr) · Tier: strong · Executor: main
-- Status: todo
+- Status: done (staging + BepInEx layout + apply/undo record; deps tracked via requiredBy; reapply after update; mod env; API routes; Podman integration test with fake provider)
 - Depends: T6, T7
 - Wave: 5 · Parallel: no
 - Files: `internal/mods/**` (w), `games/valheim/manifest.yaml` (w)
@@ -203,7 +203,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T16 — Image build + release CI
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (controller image 19.8 MB distroless nonroot; release workflow; CI integration job)
 - Depends: T3, T4, T6
 - Wave: 5 · Parallel: yes
 - Files: `.github/workflows/release.yml` (w), `images/controller/Dockerfile` (w)
@@ -216,7 +216,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 - Status: todo
 - Depends: T11
 - Wave: 6 · Parallel: yes
-- Files: `internal/mods/thunderstore/**` (w), `internal/mods/provider.go` (r)
+- Files: `internal/mods/thunderstore/**` (w), `internal/mods/provider.go` (r), `cmd/controller/main.go` (w: register in Options.ModProviders)
 - Pass: search + fetch package by community (`valheim`), resolve dependency tree with version pins, download zip; tests against recorded fixtures (no live network in unit tests).
 - Fail: dependency cycles hang; full community index downloaded on every search (cache it with ETag).
 - Gotchas: community package index is large — cache to disk, refresh daily; BepInExPack is itself a dependency.
@@ -226,7 +226,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 - Status: todo
 - Depends: T11
 - Wave: 6 · Parallel: yes
-- Files: `internal/mods/nexus/**` (w), `internal/mods/provider.go` (r)
+- Files: `internal/mods/nexus/**` (w), `internal/mods/provider.go` (r), `internal/api/` nexus-api-key routes (w, replace 501), `cmd/controller/main.go` (w)
 - Pass: API key validated via `/v1/users/validate.json`; mod/file listing; premium → direct download link; non-premium → UI flow to upload the file manually; respects rate-limit headers; fixture tests.
 - Fail: API key logged or returned; non-premium path errors instead of falling back.
 - Gotchas: Nexus requires an app `User-Agent`/`Application-Name` header; Nexus ToS forbids scraping download pages.

@@ -62,7 +62,8 @@ type Manifest struct {
 		DiskGB   int `yaml:"diskGB"`
 	} `yaml:"resources"`
 	Mods struct {
-		Loader    string `yaml:"loader"`
+		Loader    string            `yaml:"loader"`
+		Env       map[string]string `yaml:"env"`
 		Providers []struct {
 			Type       string `yaml:"type"`
 			Community  string `yaml:"community"`

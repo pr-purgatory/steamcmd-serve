@@ -49,3 +49,21 @@ jobs:
         if: hashFiles('web/package.json') != ''
         run: npm run build
         working-directory: web
+
+  integration:
+    name: Integration and image smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build fake runtime image
+        run: docker build -t localhost/steamcmd-serve-fake-runtime:test internal/instance/testdata/fake-runtime
+      - name: Integration tests
+        env:
+          SS_IT_IMAGE: localhost/steamcmd-serve-fake-runtime:test
+          SS_IT_DATA_DIR: ${{ runner.temp }}/it
+        run: go test -count=1 -run Integration -v ./internal/instance/
+      - name: Controller image smoke build (no push)
+        run: docker build -f images/controller/Dockerfile .

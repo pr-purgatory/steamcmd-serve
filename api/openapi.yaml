@@ -412,6 +412,11 @@ paths:
       tags: [mods]
       operationId: installMod
       summary: Install a mod and its dependencies into a stopped instance
+      description: |
+        JSON body: download from the provider. If the provider needs a manual download
+        (NexusMods without Premium) the job fails with a message containing
+        "manual download"; send the archive again as multipart (fields provider, ref as
+        JSON, then file). Only .zip archives are supported.
       requestBody:
         required: true
         content:
@@ -438,11 +443,6 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
-        '428':
-          description: Provider needs a manual upload of this file
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
 
   /instances/{instanceId}/mods/{modId}:
     parameters:
@@ -775,12 +775,17 @@ components:
 
     InstalledMod:
       type: object
-      required: [id, provider, ref, installedAt]
+      required: [id, provider, ref, sha256, explicit, requiredBy, installedAt]
       properties:
         id: { type: string }
-        provider: { type: string, enum: [thunderstore, nexus, upload] }
+        provider: { type: string, enum: [thunderstore, nexus] }
         ref: { $ref: '#/components/schemas/ModRef' }
-        dependencyOf: { type: string, description: Installed only as a dependency of this mod id. }
+        sha256: { type: string, description: SHA-256 of the installed archive. }
+        explicit: { type: boolean, description: Installed by the user (false = only as a dependency). }
+        requiredBy:
+          type: array
+          description: Ids of explicit mods that need this one; it is removed when none remain.
+          items: { type: string }
         installedAt: { type: string, format: date-time }
 
     NexusAccount:

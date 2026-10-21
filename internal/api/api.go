@@ -20,6 +20,7 @@ import (
 	"steamcmd-serve/internal/catalog"
 	"steamcmd-serve/internal/instance"
 	"steamcmd-serve/internal/jobs"
+	"steamcmd-serve/internal/mods"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/store"
 )
@@ -47,6 +48,11 @@ type Instances interface {
 	CreateBackup(ctx context.Context, id string) (*jobs.Job, error)
 	RestoreBackup(ctx context.Context, id, backupID string) (*jobs.Job, error)
 	Games() map[string]*catalog.Game
+	SearchMods(ctx context.Context, gameID, provider, query string) ([]mods.Package, error)
+	ListMods(ctx context.Context, id string) ([]*store.Mod, error)
+	InstallMod(ctx context.Context, id, provider string, ref mods.Ref) (*jobs.Job, error)
+	InstallModUpload(ctx context.Context, id, provider string, ref mods.Ref, archive io.Reader) (*jobs.Job, error)
+	UninstallMod(ctx context.Context, id, modID string) (*jobs.Job, error)
 }
 
 var _ Instances = (*instance.Service)(nil)
@@ -85,11 +91,11 @@ func (h *Handler) Register(mux *http.ServeMux) {
 		{"POST /instances/{instanceId}/backups", h.createBackup},
 		{"POST /instances/{instanceId}/backups/{backupId}/restore", h.restoreBackup},
 		{"GET /jobs/{jobId}", h.getJob},
-		// Later tasks implement these.
-		{"GET /games/{gameId}/mods", notImplemented},
-		{"GET /instances/{instanceId}/mods", notImplemented},
-		{"POST /instances/{instanceId}/mods", notImplemented},
-		{"DELETE /instances/{instanceId}/mods/{modId}", notImplemented},
+		{"GET /games/{gameId}/mods", h.searchMods},
+		{"GET /instances/{instanceId}/mods", h.listInstanceMods},
+		{"POST /instances/{instanceId}/mods", h.installMod},
+		{"DELETE /instances/{instanceId}/mods/{modId}", h.uninstallMod},
+		// The NexusMods task implements these.
 		{"PUT /settings/nexus-api-key", notImplemented},
 		{"GET /settings/nexus-api-key", notImplemented},
 		{"DELETE /settings/nexus-api-key", notImplemented},

@@ -79,6 +79,18 @@ var migrations = []string{
 		csrf_token TEXT NOT NULL,
 		expires_at INTEGER NOT NULL
 	);`,
+	`CREATE TABLE instance_mods (
+		id           TEXT PRIMARY KEY,
+		instance_id  TEXT NOT NULL REFERENCES instances(id) ON DELETE CASCADE,
+		provider     TEXT NOT NULL,
+		package_id   TEXT NOT NULL,
+		version      TEXT NOT NULL,
+		sha256       TEXT NOT NULL,
+		required_by  TEXT NOT NULL DEFAULT '[]',
+		explicit     INTEGER NOT NULL,
+		installed_at TEXT NOT NULL,
+		UNIQUE (instance_id, provider, package_id)
+	);`,
 }
 
 // Open opens (creating if needed) and migrates the database at path.
@@ -390,4 +402,68 @@ func (s *Store) GetSession(ctx context.Context, tokenHash string) (*Session, err
 func (s *Store) DeleteSession(ctx context.Context, tokenHash string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = ?`, tokenHash)
 	return err
+}
+
+// Mod is a package installed into an instance. Explicit mods were chosen by the user;
+// others are dependencies kept while any id in RequiredBy is installed.
+type Mod struct {
+	ID          string    `json:"id"`
+	InstanceID  string    `json:"-"`
+	Provider    string    `json:"provider"`
+	PackageID   string    `json:"packageId"`
+	Version     string    `json:"version"`
+	SHA256      string    `json:"sha256"`
+	RequiredBy  []string  `json:"requiredBy"`
+	Explicit    bool      `json:"explicit"`
+	InstalledAt time.Time `json:"installedAt"`
+}
+
+// ListMods returns an instance's mods ordered by install time.
+func (s *Store) ListMods(ctx context.Context, instanceID string) ([]*Mod, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, instance_id, provider, package_id, version, sha256, required_by, explicit, installed_at
+		 FROM instance_mods WHERE instance_id = ? ORDER BY installed_at, id`, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []*Mod{}
+	for rows.Next() {
+		var m Mod
+		var req, at string
+		if err := rows.Scan(&m.ID, &m.InstanceID, &m.Provider, &m.PackageID, &m.Version, &m.SHA256, &req, &m.Explicit, &at); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(req), &m.RequiredBy); err != nil {
+			return nil, err
+		}
+		if m.InstalledAt, err = time.Parse(time.RFC3339Nano, at); err != nil {
+			return nil, err
+		}
+		out = append(out, &m)
+	}
+	return out, rows.Err()
+}
+
+// ReplaceMods atomically replaces an instance's mod set.
+func (s *Store) ReplaceMods(ctx context.Context, instanceID string, mods []*Mod) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM instance_mods WHERE instance_id = ?`, instanceID); err != nil {
+			return err
+		}
+		for _, m := range mods {
+			req, err := json.Marshal(m.RequiredBy)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO instance_mods (id, instance_id, provider, package_id, version, sha256, required_by, explicit, installed_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				m.ID, instanceID, m.Provider, m.PackageID, m.Version, m.SHA256, string(req), m.Explicit,
+				m.InstalledAt.UTC().Format(time.RFC3339Nano)); err != nil {
+				return conflict(err)
+			}
+		}
+		return nil
+	})
 }

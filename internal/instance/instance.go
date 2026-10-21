@@ -19,6 +19,7 @@ import (
 
 	"steamcmd-serve/internal/catalog"
 	"steamcmd-serve/internal/jobs"
+	"steamcmd-serve/internal/mods"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/runtime"
 	"steamcmd-serve/internal/secrets"
@@ -34,14 +35,15 @@ var (
 
 // Options configure a Service.
 type Options struct {
-	DataDir       string            // data root as the controller sees it
-	HostDataRoot  string            // same directory as the container engine's host sees it
-	GamesDir      string            // game install root as the controller sees it (default DataDir/games)
-	HostGamesRoot string            // same directory on the engine's host (default HostDataRoot/games)
-	PUID, PGID    int               // ownership of game files inside game containers
-	TZ            string            // passed to game containers
-	Images        map[string]string // manifest runtime image name -> image reference
-	Secrets       *secrets.Box      // encrypts x-secret settings at rest
+	DataDir       string                   // data root as the controller sees it
+	HostDataRoot  string                   // same directory as the container engine's host sees it
+	GamesDir      string                   // game install root as the controller sees it (default DataDir/games)
+	HostGamesRoot string                   // same directory on the engine's host (default HostDataRoot/games)
+	PUID, PGID    int                      // ownership of game files inside game containers
+	TZ            string                   // passed to game containers
+	Images        map[string]string        // manifest runtime image name -> image reference
+	Secrets       *secrets.Box             // encrypts x-secret settings at rest
+	ModProviders  map[string]mods.Provider // by manifest provider type ("thunderstore", "nexus")
 }
 
 // Service manages instances. It is safe for concurrent use.
@@ -317,6 +319,13 @@ func (s *Service) serverSpec(g *catalog.Game, inst *store.Instance) (runtime.Ser
 	env := s.baseEnv()
 	for k, v := range m.Runtime.Env {
 		env[k] = v
+	}
+	if installed, err := s.store.ListMods(context.Background(), inst.ID); err != nil {
+		return runtime.ServerSpec{}, err
+	} else if len(installed) > 0 {
+		for k, v := range m.Mods.Env {
+			env[k] = v
+		}
 	}
 
 	host := s.hostDir(inst.ID)

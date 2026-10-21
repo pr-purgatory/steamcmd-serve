@@ -284,7 +284,13 @@ export interface paths {
         /** Installed mods */
         get: operations["listInstanceMods"];
         put?: never;
-        /** Install a mod and its dependencies into a stopped instance */
+        /**
+         * Install a mod and its dependencies into a stopped instance
+         * @description JSON body: download from the provider. If the provider needs a manual download
+         *     (NexusMods without Premium) the job fails with a message containing
+         *     "manual download"; send the archive again as multipart (fields provider, ref as
+         *     JSON, then file). Only .zip archives are supported.
+         */
         post: operations["installMod"];
         delete?: never;
         options?: never;
@@ -514,10 +520,14 @@ export interface components {
         InstalledMod: {
             id: string;
             /** @enum {string} */
-            provider: "thunderstore" | "nexus" | "upload";
+            provider: "thunderstore" | "nexus";
             ref: components["schemas"]["ModRef"];
-            /** @description Installed only as a dependency of this mod id. */
-            dependencyOf?: string;
+            /** @description SHA-256 of the installed archive. */
+            sha256: string;
+            /** @description Installed by the user (false = only as a dependency). */
+            explicit: boolean;
+            /** @description Ids of explicit mods that need this one; it is removed when none remain. */
+            requiredBy: string[];
             /** Format: date-time */
             installedAt: string;
         };
@@ -862,6 +872,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -918,6 +929,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -943,6 +955,7 @@ export interface operations {
                     "application/json": components["schemas"]["Settings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
@@ -998,6 +1011,7 @@ export interface operations {
                     "text/event-stream": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
@@ -1022,6 +1036,7 @@ export interface operations {
                     "application/json": components["schemas"]["Backup"][];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
         };
@@ -1046,6 +1061,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -1072,6 +1088,7 @@ export interface operations {
                     "application/json": components["schemas"]["Job"];
                 };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
@@ -1135,15 +1152,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
-            /** @description Provider needs a manual upload of this file */
-            428: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
         };
     };
     uninstallMod: {

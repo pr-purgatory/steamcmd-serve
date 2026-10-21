@@ -48,6 +48,12 @@ resources:
   diskGB: 5
 mods:
   loader: bepinex
+  # Unix doorstop setup from BepInExPack_Valheim's start_server_bepinex.sh (BepInEx 5.4.22).
+  env:
+    DOORSTOP_ENABLED: "1"
+    DOORSTOP_TARGET_ASSEMBLY: "./BepInEx/core/BepInEx.Preloader.dll"
+    LD_LIBRARY_PATH: "./doorstop_libs:./linux64"
+    LD_PRELOAD: "libdoorstop_x64.so"
   providers:
     - type: thunderstore
       community: valheim

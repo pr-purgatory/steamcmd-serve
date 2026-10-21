@@ -24,4 +24,4 @@ Images built on the host from `images/` at commit 1de4374, run as `PUID=99 PGID=
 
 ## Script
 
-The script that produced these results exercised the images directly with `docker run`, mirroring what the controller does (same binds, env, stop signal). Test data was left at `/mnt/user/games/steamcmd-serve/enshrouded/t4v-test` and `/mnt/user/appdata/steamcmd-serve/t4v-test`.
+The script that produced these results exercised the images directly with `docker run`, mirroring what the controller does (same binds, env, stop signal). Test data and test images were deleted afterwards.

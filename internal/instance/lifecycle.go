@@ -78,7 +78,11 @@ func (s *Service) Action(ctx context.Context, id, action string) (*jobs.Job, err
 						return fmt.Errorf("pre-update backup: %w", err)
 					}
 				}
-				return s.install(ctx, g, inst, r)
+				if err := s.install(ctx, g, inst, r); err != nil {
+					return err
+				}
+				r(0.95, "re-applying mods")
+				return s.reapplyMods(ctx, g, inst.ID)
 			}()
 			return s.finish(id, store.StateUpdating, store.StateStopped, err)
 		}}

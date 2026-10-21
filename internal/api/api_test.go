@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"steamcmd-serve/internal/catalog"
 	"steamcmd-serve/internal/instance"
 	"steamcmd-serve/internal/jobs"
+	"steamcmd-serve/internal/mods"
 	"steamcmd-serve/internal/ports"
 	"steamcmd-serve/internal/store"
 )
@@ -33,10 +35,13 @@ type fake struct {
 	games  map[string]*catalog.Game
 	events []instance.LogEvent
 	// received values, for assertions
-	create   instance.CreateRequest
-	settings catalog.Settings
-	gotTail  int
-	deleted  *bool
+	create      instance.CreateRequest
+	settings    catalog.Settings
+	gotTail     int
+	deleted     *bool
+	modProvider string
+	modRef      mods.Ref
+	upload      string
 }
 
 func (f *fake) inst() *store.Instance {
@@ -95,6 +100,25 @@ func (f *fake) RestoreBackup(context.Context, string, string) (*jobs.Job, error)
 	return f.job(), f.err
 }
 func (f *fake) Games() map[string]*catalog.Game { return f.games }
+func (f *fake) SearchMods(context.Context, string, string, string) ([]mods.Package, error) {
+	return []mods.Package{{Ref: mods.Ref{ID: "A-Mod", Version: "1.0.0"}, Name: "Mod"}}, f.err
+}
+func (f *fake) ListMods(context.Context, string) ([]*store.Mod, error) {
+	return []*store.Mod{{ID: "m1", Provider: "thunderstore", PackageID: "A-Mod", Version: "1.0.0",
+		SHA256: strings.Repeat("a", 64), Explicit: true, InstalledAt: t0}}, f.err
+}
+func (f *fake) InstallMod(_ context.Context, _, provider string, ref mods.Ref) (*jobs.Job, error) {
+	f.modProvider, f.modRef = provider, ref
+	return f.job(), f.err
+}
+func (f *fake) InstallModUpload(_ context.Context, _, provider string, ref mods.Ref, r io.Reader) (*jobs.Job, error) {
+	b, _ := io.ReadAll(r)
+	f.modProvider, f.modRef, f.upload = provider, ref, string(b)
+	return f.job(), f.err
+}
+func (f *fake) UninstallMod(context.Context, string, string) (*jobs.Job, error) {
+	return f.job(), f.err
+}
 
 func testGames(t *testing.T) map[string]*catalog.Game {
 	t.Helper()
@@ -473,21 +497,66 @@ func TestBackupsAndJobs(t *testing.T) {
 	}
 }
 
-func TestNotImplemented(t *testing.T) {
+func TestNexusKeyNotImplemented(t *testing.T) {
 	e := newEnv(t)
-	for _, c := range []struct{ method, path string }{
-		{"GET", "/games/enshrouded/mods?provider=thunderstore"},
-		{"GET", "/instances/abc123/mods"},
-		{"POST", "/instances/abc123/mods"},
-		{"DELETE", "/instances/abc123/mods/m1"},
-		{"PUT", "/settings/nexus-api-key"},
-		{"GET", "/settings/nexus-api-key"},
-		{"DELETE", "/settings/nexus-api-key"},
-	} {
-		rr := e.serve(c.method, c.path, `{}`)
+	for _, m := range []string{"PUT", "GET", "DELETE"} {
+		rr := e.serve(m, "/settings/nexus-api-key", `{}`)
 		if rr.Code != 501 || decodeErr(t, rr).Code != "not_implemented" {
-			t.Errorf("%s %s: %d %s", c.method, c.path, rr.Code, rr.Body)
+			t.Errorf("%s: %d %s", m, rr.Code, rr.Body)
 		}
+	}
+}
+
+func TestMods(t *testing.T) {
+	e := newEnv(t)
+	if rr := e.do("GET", "/games/enshrouded/mods?provider=thunderstore&q=x", ""); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"dependencies":[]`) {
+		t.Errorf("search %d %s", rr.Code, rr.Body)
+	}
+	if rr := e.do("GET", "/games/enshrouded/mods?provider=curseforge", ""); rr.Code != 400 {
+		t.Errorf("bad provider %d", rr.Code)
+	}
+	if rr := e.do("GET", "/instances/abc123/mods", ""); rr.Code != 200 || !strings.Contains(rr.Body.String(), `"requiredBy":[]`) {
+		t.Errorf("list %d %s", rr.Code, rr.Body)
+	}
+	rr := e.do("POST", "/instances/abc123/mods", `{"provider":"thunderstore","ref":{"id":"A-Mod","version":"1.0.0"}}`)
+	if rr.Code != 202 || e.f.modRef.ID != "A-Mod" || e.f.modProvider != "thunderstore" {
+		t.Errorf("install %d %s %+v", rr.Code, rr.Body, e.f.modRef)
+	}
+	if rr := e.do("POST", "/instances/abc123/mods", `{"provider":"thunderstore"}`); rr.Code != 400 {
+		t.Errorf("install without ref %d", rr.Code)
+	}
+	if rr := e.do("DELETE", "/instances/abc123/mods/m1", ""); rr.Code != 202 {
+		t.Errorf("uninstall %d", rr.Code)
+	}
+
+	// Multipart upload: fields then file.
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	mw.WriteField("provider", "nexus")
+	mw.WriteField("ref", `{"id":"123:456","version":"2.0"}`)
+	fw, _ := mw.CreateFormFile("file", "mod.zip")
+	fw.Write([]byte("PK-zip-bytes"))
+	mw.Close()
+	req := httptest.NewRequest("POST", "/api/v1/instances/abc123/mods", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	e.mux.ServeHTTP(rec, req)
+	if rec.Code != 202 || e.f.upload != "PK-zip-bytes" || e.f.modRef.ID != "123:456" || e.f.modProvider != "nexus" {
+		t.Errorf("upload %d %s %+v %q", rec.Code, rec.Body, e.f.modRef, e.f.upload)
+	}
+
+	// File before ref is rejected.
+	buf.Reset()
+	mw = multipart.NewWriter(&buf)
+	fw, _ = mw.CreateFormFile("file", "mod.zip")
+	fw.Write([]byte("x"))
+	mw.Close()
+	req = httptest.NewRequest("POST", "/api/v1/instances/abc123/mods", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec = httptest.NewRecorder()
+	e.mux.ServeHTTP(rec, req)
+	if rec.Code != 400 {
+		t.Errorf("file first: %d", rec.Code)
 	}
 }
 

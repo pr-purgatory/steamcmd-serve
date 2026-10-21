@@ -232,6 +232,62 @@ function runAction(inst: S['Instance'], action: string): Response {
 	return json(202, job);
 }
 
+
+// ---- backups + jobs (jobs finish ~2 s after creation) ----
+const JOB_MS = 2000;
+const backups = new Map<string, S['Backup'][]>();
+const jobStarts = new Map<string, { job: S['Job']; startedAt: number }>();
+let nextBackup = 1;
+let nextJob = 1;
+
+function backupsFor(instId: string): S['Backup'][] {
+	let list = backups.get(instId);
+	if (!list) {
+		const now = Date.now();
+		list = [
+			{ id: `bk-${nextBackup++}`, createdAt: new Date(now - 3600e3).toISOString(), sizeBytes: 52_428_800, reason: 'scheduled' },
+			{ id: `bk-${nextBackup++}`, createdAt: new Date(now - 86400e3).toISOString(), sizeBytes: 48_234_496, reason: 'pre-update' },
+			{ id: `bk-${nextBackup++}`, createdAt: new Date(now - 3 * 86400e3).toISOString(), sizeBytes: 1_536, reason: 'manual' }
+		];
+		backups.set(instId, list);
+	}
+	return list;
+}
+
+function startBackupJob(inst: S['Instance'], kind: 'backup' | 'restore', reason: S['Backup']['reason']): S['Job'] {
+	const job: S['Job'] = {
+		id: `mockjob-${nextJob++}`,
+		instanceId: inst.id,
+		kind,
+		status: 'running',
+		progress: 0,
+		createdAt: new Date().toISOString()
+	};
+	jobStarts.set(job.id, { job, startedAt: Date.now() });
+	after(JOB_MS, () => {
+		backupsFor(inst.id).unshift({
+			id: `bk-${nextBackup++}`,
+			createdAt: new Date().toISOString(),
+			sizeBytes: 40_000_000 + Math.floor(Math.random() * 10_000_000),
+			reason
+		});
+		job.finishedAt = new Date().toISOString();
+	});
+	return job;
+}
+
+function jobView(id: string): S['Job'] | null {
+	const e = jobStarts.get(id);
+	if (!e) return null;
+	const done = Date.now() - e.startedAt >= JOB_MS;
+	return {
+		...e.job,
+		status: done ? 'succeeded' : 'running',
+		progress: done ? 1 : Math.min(0.95, (Date.now() - e.startedAt) / JOB_MS),
+		message: done ? 'Done' : 'Working…'
+	};
+}
+
 export async function mockFetch(request: Request): Promise<Response> {
 	await new Promise((r) => setTimeout(r, 80));
 	const url = new URL(request.url, 'http://mock');
@@ -314,6 +370,28 @@ export async function mockFetch(request: Request): Promise<Response> {
 		};
 		instances.push(inst);
 		return json(201, inst);
+	}
+
+	m = path.match(/^\/jobs\/([^/]+)$/);
+	if (m && method === 'GET') {
+		const j = jobView(m[1]);
+		return j ? json(200, j) : err(404, 'not_found', 'Job not found');
+	}
+	m = path.match(/^\/instances\/([^/]+)\/backups$/);
+	if (m) {
+		const inst = instances.find((i) => i.id === m![1]);
+		if (!inst) return err(404, 'not_found', 'Instance not found');
+		if (method === 'GET') return json(200, backupsFor(inst.id));
+		if (method === 'POST') return json(202, startBackupJob(inst, 'backup', 'manual'));
+	}
+	m = path.match(/^\/instances\/([^/]+)\/backups\/([^/]+)\/restore$/);
+	if (m && method === 'POST') {
+		const inst = instances.find((i) => i.id === m![1]);
+		if (!inst) return err(404, 'not_found', 'Instance not found');
+		if (!backupsFor(inst.id).some((b) => b.id === m![2])) return err(404, 'not_found', 'Backup not found');
+		if (inst.state !== 'stopped' && inst.state !== 'error')
+			return err(409, 'bad_state', `Stop the server before restoring (currently ${inst.state})`);
+		return json(202, startBackupJob(inst, 'restore', 'pre-restore'));
 	}
 
 	m = path.match(/^\/instances\/([^/]+)\/actions\/([^/]+)$/);
