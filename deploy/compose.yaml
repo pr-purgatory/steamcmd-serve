@@ -1,0 +1,28 @@
+# steamcmd-serve controller. Game servers are NOT defined here: the controller
+# creates them as sibling containers and publishes their ports itself.
+#
+# Required env (no defaults on purpose):
+#   DATA_ROOT   absolute host directory for all state (must exist, owned by PUID:PGID)
+#   DOCKER_GID  group id of the docker socket: stat -c %g /var/run/docker.sock
+services:
+  controller:
+    image: ghcr.io/OWNER/steamcmd-serve:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # web UI + API only
+    environment:
+      DATA_DIR: /data
+      # Same directory as seen by the host; derived from the bind source so they cannot diverge.
+      HOST_DATA_ROOT: ${DATA_ROOT}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ${DATA_ROOT:?set DATA_ROOT}:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Run as PUID:PGID so the controller and game containers own the same files;
+    # it also needs the socket's group.
+    user: "${PUID:-1000}:${PGID:-1000}"
+    group_add:
+      - "${DOCKER_GID:?set DOCKER_GID (stat -c %g /var/run/docker.sock)}"

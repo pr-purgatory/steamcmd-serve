@@ -49,6 +49,21 @@ paths:
           description: Healthy
 
   /setup:
+    get:
+      tags: [auth]
+      operationId: getSetupStatus
+      summary: Whether first-run setup is still required
+      security: []
+      responses:
+        '200':
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [required]
+                properties:
+                  required: { type: boolean, description: True until the first admin exists. }
     post:
       tags: [auth]
       operationId: setup
@@ -240,6 +255,10 @@ paths:
       tags: [instances]
       operationId: instanceAction
       summary: Run a lifecycle action; long actions return a job
+      description: |
+        Allowed states: install from new or error; update from stopped or error;
+        start from stopped or error; stop from starting or running; restart from running.
+        Other combinations return 409.
       responses:
         '202':
           description: Accepted
@@ -630,7 +649,8 @@ components:
           properties:
             settingsSchema:
               type: object
-              description: JSON Schema (2020-12) for instance settings, with x-ui / x-unit / x-secret hints.
+              additionalProperties: true
+              description: JSON Schema (2020-12) for instance settings, with x-ui-group / x-unit / x-display-unit / x-secret / x-generate hints.
 
     InstanceState:
       type: string

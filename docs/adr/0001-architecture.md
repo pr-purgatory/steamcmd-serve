@@ -44,7 +44,7 @@ Every container the controller creates carries labels `io.steamcmd-serve.managed
 | `steamcmd-base` | Debian slim + steamcmd + tini, amd64 | Linux game servers, all install/update jobs |
 | `steamcmd-wine` | `steamcmd-base` + Wine64 + xvfb, amd64 | Windows game servers (Enshrouded) |
 
-Runtime images are amd64-only: steamcmd has no arm64 build. Containers run as `PUID:PGID` (1000:1000 default, 99:100 on Unraid).
+Runtime images are amd64-only: steamcmd has no arm64 build. The controller and all game containers run as the same `PUID:PGID` (1000:1000 default, 99:100 on Unraid), which owns the data root, so neither side ever has to chown the other's files. Rootless Podman is the exception: there game containers use `PUID=0`/`PGID=0` (root in a rootless container is the host user) and the controller maps to the host user with `keep-id`.
 
 Install and update run as short-lived **job containers** from `steamcmd-base` that write into the instance's `server/` directory, so a running server is never touched by steamcmd. Windows servers download with `+@sSteamCmdForcePlatformType windows`.
 

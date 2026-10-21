@@ -27,7 +27,7 @@ launch:
     - -public
     - "{{ if .Settings.public }}1{{ else }}0{{ end }}"
     - -savedir
-    - "{{ .Paths.data }}/saves"
+    - "{{ .Paths.Data }}/saves"
   stopSignal: SIGINT
   stopTimeoutSeconds: 60
 ports:

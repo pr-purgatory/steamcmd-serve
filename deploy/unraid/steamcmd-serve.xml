@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>steamcmd-serve</Name>
+  <Repository>ghcr.io/OWNER/steamcmd-serve:latest</Repository>
+  <Registry>https://github.com/OWNER/steamcmd-serve/pkgs/container/steamcmd-serve</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/OWNER/steamcmd-serve</Support>
+  <Project>https://github.com/OWNER/steamcmd-serve</Project>
+  <Overview>steamcmd-serve is a web UI for installing and running SteamCMD dedicated game servers (Enshrouded first). Each game server runs as its own separate container that the app creates through the Docker API. Game servers publish their own ports, so only the web UI port (8080/tcp) is listed in this template.
+
+WARNING - DOCKER SOCKET ACCESS IS ROOT-EQUIVALENT ON YOUR UNRAID HOST. This template maps /var/run/docker.sock into the controller so it can create game server containers. Anyone who can control this container can control the whole Unraid host. Only install this on a network you trust, do not expose the web UI port to the internet, and consider a socket proxy (for example tecnativa/docker-socket-proxy) if you need to limit what the controller can do.
+
+DATA PATH MUST MATCH. The appdata path (/mnt/user/appdata/steamcmd-serve) is used twice: as the container path /data and as the HOST_DATA_ROOT variable. These two host paths MUST be identical. If you change the appdata path, change HOST_DATA_ROOT to the same new path too, or game server bind mounts will point at the wrong directory.
+
+DOCKER ACCESS NOTE. The controller runs as a non-root user. If the web UI reports that it cannot reach Docker, add --group-add=&lt;gid&gt; to Extra Parameters, where the gid is the group of /var/run/docker.sock. Find it with: stat -c %g /var/run/docker.sock (run in the Unraid terminal). Do not guess the value.</Overview>
+  <Category>GameServers: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL></TemplateURL>
+  <Icon>https://raw.githubusercontent.com/OWNER/steamcmd-serve/main/deploy/unraid/icon.svg</Icon>
+  <ExtraParams>--user=99:100</ExtraParams>
+  <PostArgs></PostArgs>
+  <CPUset></CPUset>
+  <DonateText></DonateText>
+  <DonateLink></DonateLink>
+  <Requires></Requires>
+  <Config Name="WebUI Port" Target="8080" Default="8080" Mode="tcp" Description="Port for the steamcmd-serve web UI. Container port 8080/tcp." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Data Path" Target="/data" Default="/mnt/user/appdata/steamcmd-serve" Mode="rw" Description="Persistent app data (server installs and state). Must match HOST_DATA_ROOT below." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/steamcmd-serve</Config>
+  <Config Name="Docker Socket" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="rw" Description="Docker Engine socket used to create game server containers. ROOT-EQUIVALENT ACCESS TO THE UNRAID HOST." Type="Path" Display="always" Required="true" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="DATA_DIR" Target="DATA_DIR" Default="/data" Mode="" Description="Data directory inside the controller container. Keep as /data." Type="Variable" Display="always" Required="true" Mask="false">/data</Config>
+  <Config Name="HOST_DATA_ROOT" Target="HOST_DATA_ROOT" Default="/mnt/user/appdata/steamcmd-serve" Mode="" Description="The same appdata path as seen by the Unraid host. MUST be identical to the Data Path host directory above. If you change one, change the other." Type="Variable" Display="always" Required="true" Mask="false">/mnt/user/appdata/steamcmd-serve</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID the app writes files as. 99 is Unraid nobody." Type="Variable" Display="always" Required="true" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID the app writes files as. 100 is Unraid users." Type="Variable" Display="always" Required="true" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="Etc/UTC" Mode="" Description="Timezone, for example America/New_York." Type="Variable" Display="always" Required="false" Mask="false">Etc/UTC</Config>
+  <Config Name="DOCKER_HOST" Target="DOCKER_HOST" Default="unix:///var/run/docker.sock" Mode="" Description="Docker Engine endpoint the controller connects to. Keep the default unless you use a socket proxy." Type="Variable" Display="advanced" Required="false" Mask="false">unix:///var/run/docker.sock</Config>
+</Container>

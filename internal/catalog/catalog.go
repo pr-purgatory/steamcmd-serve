@@ -188,7 +188,36 @@ func loadGame(fsys fs.FS, dir string, schema *jsonschema.Schema) (*Game, error) 
 	if g.Ready, err = regexp.Compile(m.Readiness.LogRegex); err != nil {
 		return nil, fmt.Errorf("readiness.logRegex: %w", err)
 	}
+	if err := g.dryRun(); err != nil {
+		return nil, fmt.Errorf("dry run with default settings: %w", err)
+	}
 	return g, nil
+}
+
+// dryRun renders every template with default settings and ports, so field typos in a
+// manifest fail at load time instead of at instance start.
+func (g *Game) dryRun() error {
+	s, err := g.CompleteSettings(Settings{})
+	if err != nil {
+		return err
+	}
+	ctx := TemplateContext{Settings: s, Ports: map[string]int{}, Paths: Paths{Server: "/server", Data: "/data"}}
+	for _, p := range g.Manifest.Ports {
+		ctx.Ports[p.Name] = p.Default
+	}
+	if _, err := g.LaunchCommand(ctx); err != nil {
+		return err
+	}
+	if g.ConfigTemplate != nil {
+		var b bytes.Buffer
+		if err := g.ConfigTemplate.Execute(&b, ctx); err != nil {
+			return fmt.Errorf("config template: %w", err)
+		}
+		if g.Manifest.Settings.File.Format == "json" && !json.Valid(b.Bytes()) {
+			return fmt.Errorf("config template renders invalid JSON")
+		}
+	}
+	return nil
 }
 
 func checkPorts(ports []Port) error {

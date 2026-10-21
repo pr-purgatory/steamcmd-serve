@@ -58,6 +58,7 @@ mods: {loader: none}
 		"derive mismatch":   {strings.Replace(base, "protocol: udp}", "protocol: udp}\n  - {name: q, default: 3005, protocol: udp, derive: {from: game, offset: 1}}", 1), "demo", "default 3005"},
 		"bad template":      {strings.Replace(base, `["./srv"]`, `["{{ .Settings.x"]`, 1), "demo", "launch.command[0]"},
 		"bad regex":         {strings.Replace(base, `"ready"`, `"("`, 1), "demo", "readiness.logRegex"},
+		"unknown field":     {strings.Replace(base, `["./srv"]`, `["{{ .Paths.data }}"]`, 1), "demo", "dry run"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V)
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done except T4V (blocked)
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -103,7 +103,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T6 — Controller core: instances, ports, paths, lifecycle
 - Score: 4 (sr) · Tier: strong · Executor: main
-- Status: todo
+- Status: done (store, ports, settings completion, runtime, instance service; Podman integration test passes)
 - Depends: T1, T3
 - Wave: 3 · Parallel: no
 - Files: `internal/store/**` (w), `internal/instance/**` (w), `internal/ports/**` (w), `internal/runtime/**` (w), `internal/games/**` (w)
@@ -113,7 +113,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T10a — UI scaffold, dashboard, instance list
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (SvelteKit 3 / Svelte 5 SPA, mock mode, 24 tests)
 - Depends: T1
 - Wave: 3 · Parallel: yes
 - Files: `web/**` (w), `api/openapi.yaml` (r)
@@ -123,7 +123,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T14 — docker-compose + Podman deployment
 - Score: 2.5 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (compose + socket-proxy override + rootless quadlet; controller runs as PUID:PGID)
 - Depends: T1
 - Wave: 3 · Parallel: yes
 - Files: `deploy/compose.yaml` (w), `deploy/podman/steamcmd-serve.container` (w), `deploy/README.md` (w)
@@ -133,7 +133,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T15 — Unraid Community Apps template
 - Score: 2 (jr) · Tier: light · Executor: subagent
-- Status: todo
+- Status: done (CA template, --user=99:100)
 - Depends: T1
 - Wave: 3 · Parallel: yes
 - Files: `deploy/unraid/steamcmd-serve.xml` (w), `deploy/unraid/icon.png` (w)
@@ -146,10 +146,10 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 - Status: todo
 - Depends: T6, T4, T5
 - Wave: 4 · Parallel: no
-- Files: `internal/jobs/**` (w), `internal/instance/config_render.go` (w), `internal/backup/**` (w), `internal/logs/**` (w)
+- Files: `internal/jobs/**` (w), `internal/instance/**` (w; extend Service: install/update jobs, `starting` state + readiness, config render in Start), `internal/backup/**` (w), `internal/logs/**` (w)
 - Pass: install/update run as one-shot job containers with progress parsed from steamcmd output; config file rendered from DB + schema before every start (existing file imported once on first adopt); state machine `installing → stopped → starting → running(ready regex hit) → stopping`; log stream via SSE; backup = tar.zst of `saveDirectory` on schedule and before update, retention N; tests cover render (enum validation blocks start), state transitions, backup rotation.
 - Fail: start allowed while install job runs; server's rewritten config silently overrides UI settings; backup taken mid-write without stopping or snapshotting.
-- Gotchas: Enshrouded rewrites its config on start — controller must re-render each start and diff on stop to surface drift; Windows save files may be locked while running → backup from a copy after the 5-min save or after stop; never log userGroup passwords; settings schema does not require top-level keys but the Enshrouded template uses missingkey=error, so merge schema `default`s into stored settings before rendering; `x-generate: password` fields must be filled with random values at instance creation.
+- Gotchas: Enshrouded rewrites its config on start — controller must re-render each start and diff on stop to surface drift; Windows save files may be locked while running → backup from a copy after the 5-min save or after stop; never log userGroup passwords; settings schema does not require top-level keys but the Enshrouded template uses missingkey=error, — already handled: `catalog.Game.CompleteSettings` fills defaults and `x-generate` at create/SetSettings (T6). Start currently goes straight to `running`; T7 adds `starting` until the readiness regex matches.
 
 ### T8 — REST handlers per OpenAPI
 - Score: 3 (eng) · Tier: standard · Executor: subagent

@@ -1,0 +1,38 @@
+# Rootless Podman Quadlet. Install as ~/.config/containers/systemd/steamcmd-serve.container
+# Prereqs: systemctl --user enable --now podman.socket ; loginctl enable-linger $USER
+#          mkdir -p ~/steamcmd-serve
+[Unit]
+Description=steamcmd-serve controller
+After=podman.socket
+Requires=podman.socket
+
+[Container]
+Image=ghcr.io/OWNER/steamcmd-serve:latest
+ContainerName=steamcmd-serve
+PublishPort=8080:8080
+
+# User namespace: the image runs as uid/gid 65532 (distroless nonroot). In plain
+# rootless Podman that id maps to a subuid, which can neither open the user-owned
+# podman.sock nor write the user-owned data dir. keep-id:uid=65532,gid=65532 maps
+# container 65532 to the invoking host user, who owns both.
+UserNS=keep-id:uid=65532,gid=65532
+
+Volume=%h/steamcmd-serve:/data:Z
+Environment=DATA_DIR=/data
+Environment=HOST_DATA_ROOT=%h/steamcmd-serve
+
+# Podman's Docker-compatible API socket.
+Volume=%t/podman/podman.sock:/var/run/docker.sock
+Environment=DOCKER_HOST=unix:///var/run/docker.sock
+# Rootless: root inside the game containers is your host user, so game files stay
+# owned by you (and readable by the controller, which is also you via keep-id).
+# Non-zero ids would map to subuids the controller cannot read.
+Environment=PUID=0
+Environment=PGID=0
+Environment=TZ=UTC
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

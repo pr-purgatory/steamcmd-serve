@@ -11,7 +11,8 @@
       "description": "Server requires at least 5 characters and must not contain the server name.",
       "type": "string",
       "minLength": 5,
-      "x-secret": true
+      "x-secret": true,
+      "x-generate": "password"
     },
     "public": { "type": "boolean", "default": false }
   }

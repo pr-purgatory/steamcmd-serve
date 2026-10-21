@@ -1,0 +1,41 @@
+# Override file: put a filtering proxy between the controller and the Docker socket.
+# Usage: docker compose -f compose.yaml -f compose.socket-proxy.yaml up -d
+# Requires Docker Compose >= 2.24 (for !override / !reset).
+services:
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      IMAGES: 1
+      NETWORKS: 1
+      VOLUMES: 1
+      POST: 1
+      EXEC: 0
+      BUILD: 0
+      SWARM: 0
+      SECRETS: 0
+      SYSTEM: 0
+      AUTH: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy # internal only: no published ports, not reachable from the host
+
+  controller:
+    depends_on:
+      - socket-proxy
+    environment:
+      DOCKER_HOST: tcp://socket-proxy:2375
+    # Drop the socket mount; keep only the data bind.
+    volumes: !override
+      - ${DATA_ROOT:?set DATA_ROOT}:/data
+    # No socket, so no socket group needed.
+    group_add: !reset []
+    networks:
+      - default
+      - socket-proxy
+
+networks:
+  socket-proxy:
+    internal: true

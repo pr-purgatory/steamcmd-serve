@@ -1,0 +1,39 @@
+{
+  "name": "steamcmd-serve-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "dev:mock": "VITE_MOCK=1 vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/lib/api/schema.d.ts",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^4.0.0",
+    "@sveltejs/kit": "^3.1.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "openapi-typescript": "^7.13.0",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.17.0"
+  },
+  "imports": {
+    "#lib/*.ts": "./src/lib/*.ts",
+    "#lib/*.svelte": "./src/lib/*.svelte"
+  }
+}
