@@ -1,2 +1,8 @@
 /bin/
 /Enshrouded-Server-Docs/
+.venv/
+node_modules/
+web/dist/
+/data/
+*.db
+.DS_Store

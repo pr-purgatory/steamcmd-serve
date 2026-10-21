@@ -89,8 +89,8 @@ The controller creates sibling containers, so bind-mount sources must be **host*
   instances/<id>/
     server/                 game install (steamcmd force_install_dir)
     data/                   saves, logs, persisted paths
+      wineprefix/           Windows games only (WINEPREFIX=/data/wineprefix)
     backups/
-    wineprefix/             Windows games only
 ```
 
 ### 8. Ports

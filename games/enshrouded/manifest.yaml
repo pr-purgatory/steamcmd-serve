@@ -3,7 +3,7 @@
 id: enshrouded
 name: Enshrouded
 steam:
-  serverAppId: 2278520 # dedicated server tool; to be confirmed with app_info_print in T5
+  serverAppId: 2278520 # dedicated server tool; app_info_print could not be run (steamcmd segfaults under amd64 emulation), id unverified
   gameAppId: 1203620
   platform: windows
   anonymous: true

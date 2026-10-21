@@ -1,11 +1,562 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Enshrouded settings (stub; full schema in T5)",
+  "title": "Enshrouded server settings",
+  "description": "User-editable keys of enshrouded_server.json (server version 0.9.0.0). Paths, ip and queryPort are controller-owned.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["name"],
   "properties": {
-    "name": { "type": "string", "minLength": 1, "default": "Enshrouded Server" },
-    "slotCount": { "type": "integer", "minimum": 1, "maximum": 16, "default": 16 }
+    "name": {
+      "title": "Server name",
+      "description": "Name of the server as shown in the server list. All players can see it, so keep it non-offensive.",
+      "type": "string",
+      "minLength": 1,
+      "default": "Enshrouded Server",
+      "x-ui-group": "server"
+    },
+    "slotCount": {
+      "title": "Player slots",
+      "description": "Number of available player slots (1-16). Each slot increases server load.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 16,
+      "x-ui-group": "server"
+    },
+    "tags": {
+      "title": "Tags",
+      "description": "Server list tags.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "x-ui-group": "server"
+    },
+    "voiceChatMode": {
+      "title": "Voice chat mode",
+      "description": "Proximity voice chat or global, server-wide voice chat.",
+      "type": "string",
+      "enum": [
+        "Proximity",
+        "Global"
+      ],
+      "default": "Proximity",
+      "x-ui-group": "chat"
+    },
+    "enableVoiceChat": {
+      "title": "Voice chat",
+      "description": "Switches voice chat completely off or on.",
+      "type": "boolean",
+      "default": false,
+      "x-ui-group": "chat"
+    },
+    "enableTextChat": {
+      "title": "Text chat",
+      "description": "Switches text chat completely off or on.",
+      "type": "boolean",
+      "default": false,
+      "x-ui-group": "chat"
+    },
+    "gameSettingsPreset": {
+      "title": "Difficulty preset",
+      "description": "Difficulty preset. Default is vanilla, Relaxed fewer enemies and more loot, Hard more and more aggressive enemies, Survival adds survival mechanics, Custom enables gameSettings.",
+      "type": "string",
+      "enum": [
+        "Default",
+        "Relaxed",
+        "Hard",
+        "Survival",
+        "Custom"
+      ],
+      "default": "Default",
+      "x-ui-group": "difficulty"
+    },
+    "gameSettings": {
+      "title": "Custom game settings",
+      "description": "Individual gameplay settings. Only applied by the server when gameSettingsPreset is Custom.",
+      "type": "object",
+      "additionalProperties": false,
+      "default": {
+        "playerHealthFactor": 1,
+        "playerManaFactor": 1,
+        "playerStaminaFactor": 1,
+        "playerBodyHeatFactor": 1,
+        "playerDivingTimeFactor": 1,
+        "enableDurability": true,
+        "enableStarvingDebuff": false,
+        "foodBuffDurationFactor": 1,
+        "fromHungerToStarving": 600000000000,
+        "shroudTimeFactor": 1,
+        "tombstoneMode": "AddBackpackMaterials",
+        "enableGliderTurbulences": true,
+        "weatherFrequency": "Normal",
+        "fishingDifficulty": "Normal",
+        "miningDamageFactor": 1,
+        "plantGrowthSpeedFactor": 1,
+        "resourceDropStackAmountFactor": 1,
+        "factoryProductionSpeedFactor": 1,
+        "perkUpgradeRecyclingFactor": 0.5,
+        "perkCostFactor": 1,
+        "experienceCombatFactor": 1,
+        "experienceMiningFactor": 1,
+        "experienceExplorationQuestsFactor": 1,
+        "randomSpawnerAmount": "Normal",
+        "aggroPoolAmount": "Normal",
+        "enemyDamageFactor": 1,
+        "enemyHealthFactor": 1,
+        "enemyStaminaFactor": 1,
+        "enemyPerceptionRangeFactor": 1,
+        "bossDamageFactor": 1,
+        "bossHealthFactor": 1,
+        "threatBonus": 1,
+        "pacifyAllEnemies": false,
+        "tamingStartleRepercussion": "LoseSomeProgress",
+        "dayTimeDuration": 1800000000000,
+        "nightTimeDuration": 720000000000,
+        "curseModifier": "Normal"
+      },
+      "x-ui-group": "difficulty",
+      "properties": {
+        "playerHealthFactor": {
+          "title": "Player health",
+          "description": "Scales the max health for players by a factor. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "playerManaFactor": {
+          "title": "Player mana",
+          "description": "Scales the max mana for players by a factor. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "playerStaminaFactor": {
+          "title": "Player stamina",
+          "description": "Scales the max stamina for players by a factor. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "playerBodyHeatFactor": {
+          "title": "Body heat against cold",
+          "description": "Scales the max body heat; the higher the factor the longer a player can stay in very cold areas before hypothermia sets in.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "playerDivingTimeFactor": {
+          "title": "Diving time",
+          "description": "Modifies the initial amount of oxygen for players and therefore the time available underwater.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "enableDurability": {
+          "title": "Weapon durability",
+          "description": "If false, weapons don't break anymore.",
+          "type": "boolean",
+          "default": true
+        },
+        "enableStarvingDebuff": {
+          "title": "Hunger and starvation",
+          "description": "Enables hunger and starvation. During starvation the player loses health periodically until death if no food or drink is consumed.",
+          "type": "boolean",
+          "default": false
+        },
+        "foodBuffDurationFactor": {
+          "title": "Food buff duration",
+          "description": "Scales food buff durations. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "fromHungerToStarving": {
+          "title": "Hungry state duration",
+          "description": "Length of the hungry state before starving sets in (5 to 20 minutes). Unit is nanoseconds.",
+          "type": "integer",
+          "default": 600000000000,
+          "minimum": 300000000000,
+          "maximum": 1200000000000,
+          "x-unit": "ns",
+          "x-display-unit": "min"
+        },
+        "shroudTimeFactor": {
+          "title": "Shroud time",
+          "description": "Scales how long player characters can remain within the Shroud. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "tombstoneMode": {
+          "title": "Tombstone mode",
+          "description": "What players lose into a tombstone when dying; by default only materials.",
+          "type": "string",
+          "default": "AddBackpackMaterials",
+          "enum": [
+            "AddBackpackMaterials",
+            "Everything",
+            "NoTombstone"
+          ]
+        },
+        "enableGliderTurbulences": {
+          "title": "Glider turbulences",
+          "description": "If false, the glider is not affected by air turbulences, as in previous game versions.",
+          "type": "boolean",
+          "default": true
+        },
+        "weatherFrequency": {
+          "title": "Weather frequency",
+          "description": "How often new weather phenomena appear in the game world.",
+          "type": "string",
+          "default": "Normal",
+          "enum": [
+            "Disabled",
+            "Rare",
+            "Normal",
+            "Often"
+          ]
+        },
+        "fishingDifficulty": {
+          "title": "Fishing difficulty",
+          "description": "Strength of the fish during the fishing minigame; stronger fish make the minigame last longer.",
+          "type": "string",
+          "default": "Normal",
+          "enum": [
+            "VeryEasy",
+            "Easy",
+            "Normal",
+            "Hard",
+            "VeryHard"
+          ]
+        },
+        "miningDamageFactor": {
+          "title": "Mining effectiveness",
+          "description": "Scales mining damage. Higher values mean more terraforming and more resources per hit. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "plantGrowthSpeedFactor": {
+          "title": "Plant growth speed",
+          "description": "Scales the plant growth speed. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "resourceDropStackAmountFactor": {
+          "title": "Resource gain",
+          "description": "Scales the amount of materials per loot stack in chests, defeated enemies etc. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "factoryProductionSpeedFactor": {
+          "title": "Workstation effectiveness",
+          "description": "Scales the length of production times for workshop items. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "perkUpgradeRecyclingFactor": {
+          "title": "Weapon recycling yield",
+          "description": "Scales the amount of Runes returned when salvaging upgraded weapons. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 0.5,
+          "minimum": 0,
+          "maximum": 1
+        },
+        "perkCostFactor": {
+          "title": "Weapon upgrade cost",
+          "description": "Scales the amount of Runes required for upgrading weapons. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "experienceCombatFactor": {
+          "title": "Combat experience",
+          "description": "Scales the amount of XP received through combat. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "experienceMiningFactor": {
+          "title": "Mining experience",
+          "description": "Scales the amount of XP received by mining resources. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 2
+        },
+        "experienceExplorationQuestsFactor": {
+          "title": "Exploration experience",
+          "description": "Scales the amount of XP received by exploring and completing quests. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 2
+        },
+        "randomSpawnerAmount": {
+          "title": "Enemy amount",
+          "description": "Controls the amount of enemies in the world.",
+          "type": "string",
+          "default": "Normal",
+          "enum": [
+            "Few",
+            "Normal",
+            "Many",
+            "Extreme"
+          ]
+        },
+        "aggroPoolAmount": {
+          "title": "Simultaneous enemy attacks",
+          "description": "Controls how many enemies are allowed to attack at the same time.",
+          "type": "string",
+          "default": "Normal",
+          "enum": [
+            "Few",
+            "Normal",
+            "Many",
+            "Extreme"
+          ]
+        },
+        "enemyDamageFactor": {
+          "title": "Enemy damage",
+          "description": "Scales all enemy damage, except for bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 5
+        },
+        "enemyHealthFactor": {
+          "title": "Enemy health",
+          "description": "Scales all enemy health, except for bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "enemyStaminaFactor": {
+          "title": "Enemy stun resistance",
+          "description": "Scales all enemy stamina; enemies with more stamina take longer to stun. Excludes bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "enemyPerceptionRangeFactor": {
+          "title": "Enemy perception",
+          "description": "Scales how far enemies can see and hear the player. Excludes bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.5,
+          "maximum": 2
+        },
+        "bossDamageFactor": {
+          "title": "Boss damage",
+          "description": "Scales the damage of boss attacks. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.2,
+          "maximum": 5
+        },
+        "bossHealthFactor": {
+          "title": "Boss health",
+          "description": "Scales all health of bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.2,
+          "maximum": 5
+        },
+        "threatBonus": {
+          "title": "Enemy attack frequency",
+          "description": "Scales the frequency of enemy attacks. Excludes bosses. Ingame, the factor is represented by a percentage.",
+          "type": "number",
+          "default": 1,
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "pacifyAllEnemies": {
+          "title": "Pacified enemies",
+          "description": "If true, enemies won't attack players until attacked. Excludes bosses.",
+          "type": "boolean",
+          "default": false
+        },
+        "tamingStartleRepercussion": {
+          "title": "Taming failure",
+          "description": "How the game reacts when the player startles wildlife during taming.",
+          "type": "string",
+          "default": "LoseSomeProgress",
+          "enum": [
+            "KeepProgress",
+            "LoseSomeProgress",
+            "LoseAllProgress"
+          ]
+        },
+        "dayTimeDuration": {
+          "title": "Daytime length",
+          "description": "Length of daytime; a smaller value means shorter daytime (2 to 60 minutes). Unit is nanoseconds.",
+          "type": "integer",
+          "default": 1800000000000,
+          "minimum": 120000000000,
+          "maximum": 3600000000000,
+          "x-unit": "ns",
+          "x-display-unit": "min"
+        },
+        "nightTimeDuration": {
+          "title": "Nighttime length",
+          "description": "Length of nighttime; a smaller value means shorter nighttime (2 to 60 minutes). Unit is nanoseconds.",
+          "type": "integer",
+          "default": 720000000000,
+          "minimum": 120000000000,
+          "maximum": 3600000000000,
+          "x-unit": "ns",
+          "x-display-unit": "min"
+        },
+        "curseModifier": {
+          "title": "Shroud curse",
+          "description": "Easy turns the Shroud curse off, Hard doubles the chance of receiving it relative to Normal.",
+          "type": "string",
+          "default": "Normal",
+          "enum": [
+            "Easy",
+            "Normal",
+            "Hard"
+          ]
+        }
+      }
+    },
+    "userGroups": {
+      "title": "User groups",
+      "description": "Permission groups, each protected by a password. Group names must be unique (not enforceable in the schema; the controller checks). Passwords are secrets.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "password",
+          "canKickBan",
+          "canAccessInventories",
+          "canEditWorld",
+          "canEditBase",
+          "canExtendBase",
+          "reservedSlots"
+        ],
+        "properties": {
+          "name": {
+            "title": "Group name",
+            "description": "Name of the group; must be unique within userGroups.",
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "title": "Password",
+            "description": "Password players enter to join this group. Generated at instance creation.",
+            "type": "string",
+            "x-secret": true,
+            "x-generate": "password"
+          },
+          "canKickBan": {
+            "title": "Can kick/ban",
+            "description": "Members may kick and ban players.",
+            "type": "boolean"
+          },
+          "canAccessInventories": {
+            "title": "Can access inventories",
+            "description": "Members may access chests and other inventories.",
+            "type": "boolean"
+          },
+          "canEditWorld": {
+            "title": "Can edit world",
+            "description": "Members may edit the world (terraform, gather).",
+            "type": "boolean"
+          },
+          "canEditBase": {
+            "title": "Can edit base",
+            "description": "Members may edit the base.",
+            "type": "boolean"
+          },
+          "canExtendBase": {
+            "title": "Can extend base",
+            "description": "Members may extend the base.",
+            "type": "boolean"
+          },
+          "reservedSlots": {
+            "title": "Reserved slots",
+            "description": "Player slots reserved for this group.",
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "default": [
+        {
+          "name": "Admin",
+          "password": "",
+          "canKickBan": true,
+          "canAccessInventories": true,
+          "canEditWorld": true,
+          "canEditBase": true,
+          "canExtendBase": true,
+          "reservedSlots": 0
+        },
+        {
+          "name": "Friend",
+          "password": "",
+          "canKickBan": false,
+          "canAccessInventories": true,
+          "canEditWorld": true,
+          "canEditBase": true,
+          "canExtendBase": false,
+          "reservedSlots": 0
+        },
+        {
+          "name": "Guest",
+          "password": "",
+          "canKickBan": false,
+          "canAccessInventories": false,
+          "canEditWorld": true,
+          "canEditBase": false,
+          "canExtendBase": false,
+          "reservedSlots": 0
+        },
+        {
+          "name": "Visitor",
+          "password": "",
+          "canKickBan": false,
+          "canAccessInventories": false,
+          "canEditWorld": false,
+          "canEditBase": false,
+          "canExtendBase": false,
+          "reservedSlots": 0
+        }
+      ],
+      "x-ui-group": "access"
+    },
+    "bans": {
+      "title": "Bans",
+      "description": "Banned player ids.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "x-ui-group": "access"
+    }
   }
 }

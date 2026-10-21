@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1)
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V)
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -18,8 +18,8 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 | Q8 | Enshrouded config source | — | **Official PDFs in `Enshrouded-Server-Docs/`** (facts captured below) |
 | Q9 | Image registry / GitHub owner | `ghcr.io/<owner>` placeholder | assumed |
 | Q10 | x86 test host for E2E | — | **Unraid** |
-| Q11 | Unraid access for E2E: SSH target + appdata path | `ssh root@tower`, `/mnt/user/appdata/steamcmd-serve` | open — blocks T17 only |
-| Q12 | SteamCMD AppID for Enshrouded server. 1203620 is the *game*; the dedicated-server tool is believed to be **2278520** (anonymous login) | `app_update 2278520`; keep 1203620 as the Steam game id for display/query | assumed — verified in T5 |
+| Q11 | Unraid access for E2E: SSH target + appdata path | `ssh root@tower`, `/mnt/user/appdata/steamcmd-serve` | open — `tower` does not resolve; blocks T4V, T17 |
+| Q12 | (unverified: steamcmd segfaults under qemu) SteamCMD AppID for Enshrouded server. 1203620 is the *game*; the dedicated-server tool is believed to be **2278520** (anonymous login) | `app_update 2278520`; keep 1203620 as the Steam game id for display/query | assumed — verified in T5 |
 
 ## Enshrouded reference (from official PDFs, Oct 2026)
 - Windows-only server binary (`enshrouded_server.exe`); "Linux support planned". → Needs Wine on Linux.
@@ -53,7 +53,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T2 — License and repo hygiene
 - Score: 1.5 (jr) · Tier: light · Executor: subagent
-- Status: todo
+- Status: done
 - Depends: T1
 - Wave: 2 · Parallel: yes
 - Files: `.gitignore` (w, extend existing), `LICENSE` (w), `NOTICE` (w), `CONTRIBUTING.md` (w), `.editorconfig` (w), `.github/workflows/ci.yml` (w)
@@ -63,7 +63,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T3 — steamcmd-base runtime image
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (build, shellcheck, PUID, signals verified locally; real install → T4V)
 - Depends: T1
 - Wave: 2 · Parallel: yes
 - Files: `images/steamcmd-base/Dockerfile` (w), `images/steamcmd-base/entrypoint.sh` (w)
@@ -73,7 +73,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T4 — steamcmd-wine runtime image (Windows servers)
 - Score: 4 (sr) · Tier: strong · Executor: main
-- Status: todo
+- Status: done (builds; runtime → T4V — Wine aborts under qemu on 16K-page host)
 - Depends: T1
 - Wave: 2 · Parallel: no
 - Files: `images/steamcmd-wine/Dockerfile` (w), `images/steamcmd-wine/entrypoint.sh` (w)
@@ -83,13 +83,23 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T5 — Enshrouded manifest + config schema
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (schema + template + tests; AppID check → T4V)
 - Depends: T1
 - Wave: 2 · Parallel: yes
 - Files: `games/enshrouded/manifest.yaml` (w), `games/enshrouded/settings.schema.json` (w), `games/enshrouded/enshrouded_server.json.tmpl` (w), `internal/catalog/catalog_test.go` (w), `games/manifest.schema.json` (r), `Enshrouded-Server-Docs/*.pdf` (r)
 - Pass: settings schema covers every user-editable key in the "Enshrouded reference" section with exact enum spellings, min/max and `default`s (controller-owned keys `saveDirectory`, `logDirectory`, `ip`, `queryPort` stay in the template only); a test renders the template with schema defaults and the output parses as JSON and matches the official default file's keys; `go test ./internal/catalog/` exits 0; manifest declares platform=windows, image=steamcmd-wine, ports `[{name: query, default: 15637, proto: udp}]`, ready regex `\[Session\] 'HostOnline' \(up\)!`, config path `/server/enshrouded_server.json`, saveDirectory/logDirectory mapped into `data/`; `steamcmd +login anonymous +app_info_print 2278520 +quit` output confirms server app (record result in manifest comment, resolves Q12).
 - Fail: enum typo (server won't boot); legacy `password` key emitted; gameSettings rendered with preset≠Custom without UI warning; ns durations stored as float.
 - Gotchas: doc PDF text has ligature damage (`enableStarvingDebuf `, `foodBuf DurationFactor`, `fishingDif iculty`) — correct spellings are `enableStarvingDebuff`, `foodBuffDurationFactor`, `fishingDifficulty`; ns values up to 3.6e12 fit in int64/JSON safely but must be integers; perkUpgradeRecyclingFactor default 0.5; userGroup passwords are secrets.
+
+### T4V — Native amd64 runtime verification (Unraid)
+- Score: 2.5 (eng) · Tier: standard · Executor: subagent
+- Status: blocked (Q11 SSH target; Valve update host `client-download.steampowered.com` → `update.client.steamcontent.akadns.net` NXDOMAIN at Akamai on 2026-10-21)
+- Depends: T3, T4, T5
+- Wave: 3 · Parallel: no
+- Files: `docs/verification/runtime-images.md` (w), `images/**` (r)
+- Pass: on Unraid, base image build passes its `/opt/steamcmd/package` guard; `install 896660 --validate` exits 0 and files are PUID-owned; `+app_info_print 2278520` shows the Enshrouded Dedicated Server with windows oslist (update manifest comment); `install 2278520 --platform windows` exits 0; wine image `run -- wine enshrouded_server.exe` reaches `[Session] 'HostOnline' (up)!`; `podman/docker stop` with SIGINT exits within 90 s and the world save exists afterwards. Results recorded in the doc.
+- Fail: any step needs root-owned files; stop hits the timeout (then try SIGTERM, record which works and update the manifest stopSignal); save missing after stop.
+- Gotchas: steamcmd and Wine cannot run under qemu on Apple Silicon (16K pages) — do not retry locally; ~13 GB download; run via SSH, no secrets in args.
 
 ### T6 — Controller core: instances, ports, paths, lifecycle
 - Score: 4 (sr) · Tier: strong · Executor: main
@@ -139,7 +149,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 - Files: `internal/jobs/**` (w), `internal/instance/config_render.go` (w), `internal/backup/**` (w), `internal/logs/**` (w)
 - Pass: install/update run as one-shot job containers with progress parsed from steamcmd output; config file rendered from DB + schema before every start (existing file imported once on first adopt); state machine `installing → stopped → starting → running(ready regex hit) → stopping`; log stream via SSE; backup = tar.zst of `saveDirectory` on schedule and before update, retention N; tests cover render (enum validation blocks start), state transitions, backup rotation.
 - Fail: start allowed while install job runs; server's rewritten config silently overrides UI settings; backup taken mid-write without stopping or snapshotting.
-- Gotchas: Enshrouded rewrites its config on start — controller must re-render each start and diff on stop to surface drift; Windows save files may be locked while running → backup from a copy after the 5-min save or after stop; never log userGroup passwords.
+- Gotchas: Enshrouded rewrites its config on start — controller must re-render each start and diff on stop to surface drift; Windows save files may be locked while running → backup from a copy after the 5-min save or after stop; never log userGroup passwords; settings schema does not require top-level keys but the Enshrouded template uses missingkey=error, so merge schema `default`s into stored settings before rendering; `x-generate: password` fields must be filled with random values at instance creation.
 
 ### T8 — REST handlers per OpenAPI
 - Score: 3 (eng) · Tier: standard · Executor: subagent
@@ -262,7 +272,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 - Gotchas: reuse web UI build where possible rather than a second UI.
 
 ## Waves
-W1: T1 · W2: T2 T3 T5 T4(main) · W3: T6(main) T10a T14 T15 · W4: T7(main) T9(main) T8 T10b · W5: T11(main) T10c T16 · W6: T12 T13 T17(no-parallel) · W7: T10d T18 · W8: T19
+W1: T1 · W2: T2 T3 T5 T4(main) · W3: T6(main) T10a T14 T15 T4V(no-parallel, blocked) · W4: T7(main) T9(main) T8 T10b · W5: T11(main) T10c T16 · W6: T12 T13 T17(no-parallel) · W7: T10d T18 · W8: T19
 
 ## Audit fixes applied
 1. T5 sourced from official PDFs; ligature-damaged keys corrected.
@@ -275,4 +285,4 @@ W1: T1 · W2: T2 T3 T5 T4(main) · W3: T6(main) T10a T14 T15 · W4: T7(main) T9(
 8. T10b depends on T5 schema hints (`x-unit`, `x-ui`).
 
 ## Cost note
-22 tasks: 3 jr · 13 eng · 5 sr · 1 ar. 16/22 (73%) on light/standard tiers; main agent keeps T1, T4, T6, T7, T9, T11.
+23 tasks: 3 jr · 14 eng · 5 sr · 1 ar. 17/23 (74%) on light/standard tiers; main agent keeps T1, T4, T6, T7, T9, T11.
