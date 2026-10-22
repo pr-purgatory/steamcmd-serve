@@ -20,14 +20,13 @@ rights of your user account. With rootful Podman, it grants root on the host.
 ## 1. Get the files
 
 ```sh
-git clone https://github.com/OWNER/steamcmd-serve.git
+git clone https://github.com/pr-purgatory/steamcmd-serve.git
 cd steamcmd-serve
 ```
 
 ## 2. Install the Quadlet unit
 
-Copy the unit file and edit `Image=`. Replace `OWNER` with the GitHub owner
-of the image:
+Copy the unit file. It runs this image:
 
 ```sh
 mkdir -p ~/steamcmd-serve ~/.config/containers/systemd
@@ -35,7 +34,7 @@ cp deploy/podman/steamcmd-serve.container ~/.config/containers/systemd/
 ```
 
 ```ini
-Image=ghcr.io/OWNER/steamcmd-serve:latest
+Image=ghcr.io/pr-purgatory/steamcmd-serve:latest
 ```
 
 Then enable the socket, start the unit and check it:
@@ -93,7 +92,7 @@ is normally fine.
 Pull the new image and restart the unit. Your data stays in `~/steamcmd-serve`.
 
 ```sh
-podman pull ghcr.io/OWNER/steamcmd-serve:latest
+podman pull ghcr.io/pr-purgatory/steamcmd-serve:latest
 systemctl --user restart steamcmd-serve
 ```
 

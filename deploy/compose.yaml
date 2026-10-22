@@ -6,7 +6,7 @@
 #   DOCKER_GID  group id of the docker socket: stat -c %g /var/run/docker.sock
 services:
   controller:
-    image: ghcr.io/OWNER/steamcmd-serve:latest
+    image: ghcr.io/pr-purgatory/steamcmd-serve:latest
     restart: unless-stopped
     ports:
       - "8080:8080" # web UI + API only

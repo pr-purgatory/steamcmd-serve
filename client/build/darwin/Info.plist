@@ -8,7 +8,7 @@
         <key>CFBundleExecutable</key>
         <string>{{.OutputFilename}}</string>
         <key>CFBundleIdentifier</key>
-        <string>io.github.steamcmd-serve.client</string>
+        <string>io.github.pr-purgatory.steamcmd-serve</string>
         <key>CFBundleVersion</key>
         <string>{{.Info.ProductVersion}}</string>
         <key>CFBundleGetInfoString</key>

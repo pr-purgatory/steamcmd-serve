@@ -19,7 +19,7 @@ import (
 
 const (
 	defaultBaseURL = "https://thunderstore.io"
-	userAgent      = "steamcmd-serve (+https://github.com/OWNER/steamcmd-serve)"
+	userAgent      = "steamcmd-serve (+https://github.com/pr-purgatory/steamcmd-serve)"
 	maxDownload    = 1 << 30
 	maxResults     = 50
 )

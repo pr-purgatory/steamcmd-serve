@@ -4,9 +4,6 @@ The controller (web UI + API on port 8080) runs as one container. It creates the
 game servers as sibling containers through the container runtime's Docker-compatible
 API socket, and those containers publish their own game ports on the host.
 
-Replace `OWNER` in `ghcr.io/OWNER/steamcmd-serve:latest` with the image owner in every
-file below.
-
 ## Security
 
 **Read this first.**
@@ -83,7 +80,7 @@ loginctl enable-linger "$USER"      # keep it running after logout / start at bo
 systemctl --user daemon-reload && systemctl --user start steamcmd-serve
 ```
 
-Edit `Image=` (replace `OWNER`) first. The unit uses
+The unit uses
 `UserNS=keep-id:uid=65532,gid=65532` so the container's uid 65532 is your host user,
 who owns the socket and data dir. Keep `PUID=0`/`PGID=0`: in rootless Podman, root in
 a game container is your host user, so game files stay owned by you; any other id

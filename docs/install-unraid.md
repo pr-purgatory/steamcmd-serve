@@ -45,12 +45,10 @@ templates folder:
 cp deploy/unraid/steamcmd-serve.xml /boot/config/plugins/dockerMan/templates-user/
 ```
 
-Before you copy it, replace `OWNER` in the `Repository` line with the GitHub
-owner of the image. The file has `OWNER` in several places. The `Repository`
-line is the one that matters for pulling the image:
+The template pulls this image:
 
 ```xml
-<Repository>ghcr.io/OWNER/steamcmd-serve:latest</Repository>
+<Repository>ghcr.io/pr-purgatory/steamcmd-serve:latest</Repository>
 ```
 
 **Template repository.** If you host this repository on GitHub, you can add it

@@ -82,7 +82,7 @@ func run() error {
 		return fmt.Errorf("container engine not reachable (DOCKER_HOST): %w", err)
 	}
 
-	imageRepo := envOr("IMAGE_REPO", "ghcr.io/OWNER")
+	imageRepo := envOr("IMAGE_REPO", "ghcr.io/pr-purgatory")
 	imageTag := envOr("IMAGE_TAG", "latest")
 
 	// Mod providers share one client: no overall timeout (archives can be large),

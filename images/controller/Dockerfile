@@ -23,10 +23,10 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0 \
     go build -trimpath -ldflags "-s -w" -o /out/controller ./cmd/controller
 
 FROM gcr.io/distroless/static-debian12:nonroot
-ARG IMAGE_REPO=ghcr.io/OWNER
+ARG IMAGE_REPO=ghcr.io/pr-purgatory
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="steamcmd-serve controller" \
-      org.opencontainers.image.source="https://github.com/OWNER/steamcmd-serve" \
+      org.opencontainers.image.source="https://github.com/pr-purgatory/steamcmd-serve" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.version="${VERSION}"
 COPY --from=go /out/controller /usr/local/bin/controller

@@ -16,7 +16,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 | Q6 | Git | `git init`, one commit per wave, no push | assumed |
 | Q7 | Max concurrent subagents | 4 | assumed |
 | Q8 | Enshrouded config source | — | **Official PDFs in `Enshrouded-Server-Docs/`** (facts captured below) |
-| Q9 | Image registry / GitHub owner | `ghcr.io/<owner>` placeholder | assumed |
+| Q9 | Image registry / GitHub owner | `ghcr.io/<owner>` placeholder | **pr-purgatory** (git@github.com:pr-purgatory/steamcmd-serve.git) |
 | Q10 | x86 test host for E2E | — | **Unraid** |
 | Q11 | Unraid access for E2E: SSH target + appdata path | `ssh root@tower`, `/mnt/user/appdata/steamcmd-serve` | **root@<unraid-host>; appdata default; games at /mnt/user/games/steamcmd-serve/<game>/** |
 | Q12 | (verified 2026-10-21 on Unraid: Enshrouded Dedicated Server, windows) SteamCMD AppID for Enshrouded server. 1203620 is the *game*; the dedicated-server tool is believed to be **2278520** (anonymous login) | `app_update 2278520`; keep 1203620 as the Steam game id for display/query | assumed — verified in T5 |

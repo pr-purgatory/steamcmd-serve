@@ -7,7 +7,7 @@ After=podman.socket
 Requires=podman.socket
 
 [Container]
-Image=ghcr.io/OWNER/steamcmd-serve:latest
+Image=ghcr.io/pr-purgatory/steamcmd-serve:latest
 ContainerName=steamcmd-serve
 PublishPort=8080:8080
 

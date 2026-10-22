@@ -25,9 +25,7 @@ with mods through BepInEx).
 
 ## Quickstart
 
-Each platform has a detailed guide in `docs/`. Replace `OWNER` in the image
-name (`ghcr.io/OWNER/steamcmd-serve`) with the GitHub owner of the image
-before you start.
+Each platform has a detailed guide in `docs/`.
 
 Docker Compose ([full guide](docs/install-docker.md)):
 

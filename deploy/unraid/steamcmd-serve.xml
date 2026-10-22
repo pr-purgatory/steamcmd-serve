@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <Container version="2">
   <Name>steamcmd-serve</Name>
-  <Repository>ghcr.io/OWNER/steamcmd-serve:latest</Repository>
-  <Registry>https://github.com/OWNER/steamcmd-serve/pkgs/container/steamcmd-serve</Registry>
+  <Repository>ghcr.io/pr-purgatory/steamcmd-serve:latest</Repository>
+  <Registry>https://github.com/pr-purgatory/steamcmd-serve/pkgs/container/steamcmd-serve</Registry>
   <Network>bridge</Network>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/OWNER/steamcmd-serve</Support>
-  <Project>https://github.com/OWNER/steamcmd-serve</Project>
+  <Support>https://github.com/pr-purgatory/steamcmd-serve</Support>
+  <Project>https://github.com/pr-purgatory/steamcmd-serve</Project>
   <Overview>steamcmd-serve is a web UI for installing and running SteamCMD dedicated game servers (Enshrouded first). Each game server runs as its own separate container that the app creates through the Docker API. Game servers publish their own ports, so only the web UI port (8080/tcp) is listed in this template.
 
 WARNING - DOCKER SOCKET ACCESS IS ROOT-EQUIVALENT ON YOUR UNRAID HOST. This template maps /var/run/docker.sock into the controller so it can create game server containers. Anyone who can control this container can control the whole Unraid host. Only install this on a network you trust, do not expose the web UI port to the internet, and consider a socket proxy (for example tecnativa/docker-socket-proxy) if you need to limit what the controller can do.
@@ -20,7 +20,7 @@ DOCKER ACCESS NOTE. The controller runs as nobody:users (--user=99:100) and need
   <Category>GameServers: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL></TemplateURL>
-  <Icon>https://raw.githubusercontent.com/OWNER/steamcmd-serve/main/deploy/unraid/icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/pr-purgatory/steamcmd-serve/main/deploy/unraid/icon.svg</Icon>
   <ExtraParams>--user=99:100 --group-add=281</ExtraParams>
   <PostArgs></PostArgs>
   <CPUset></CPUset>

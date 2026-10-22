@@ -19,18 +19,9 @@ the Docker socket, and access to that socket is root-equivalent on the host.
 ## 1. Get the files
 
 ```sh
-git clone https://github.com/OWNER/steamcmd-serve.git
+git clone https://github.com/pr-purgatory/steamcmd-serve.git
 cd steamcmd-serve
 ```
-
-Replace `OWNER` with the GitHub owner of the image. In `deploy/compose.yaml`,
-change this line:
-
-```yaml
-image: ghcr.io/OWNER/steamcmd-serve:latest
-```
-
-Replace `OWNER` with the owner name.
 
 ## 2. Create the data directory
 
