@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done · W6 done · W7 done
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done · W6 done · W7 done · W8 done (T19)
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -263,7 +263,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T19 — (stretch) Cross-platform thin client
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (Wails v2.17 thin client; connect page + error paths verified on a MacBook Air; LAN connect blocked by macOS Local Network privacy until the user allows it)
 - Depends: T8, T9
 - Wave: 8 · Parallel: yes
 - Files: `client/**` (w)

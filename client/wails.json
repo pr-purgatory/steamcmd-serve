@@ -1,0 +1,20 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "steamcmd-serve",
+  "outputfilename": "steamcmd-serve-client",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "The steamcmd-serve Authors"
+  },
+  "info": {
+    "companyName": "steamcmd-serve",
+    "productName": "steamcmd-serve",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright 2026 The steamcmd-serve Authors",
+    "comments": "Thin desktop client for a steamcmd-serve controller. Licensed under Apache-2.0."
+  }
+}

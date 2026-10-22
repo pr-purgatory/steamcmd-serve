@@ -103,3 +103,70 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=controller
           cache-to: type=gha,mode=max,scope=controller
+
+  desktop-client:
+    name: Desktop client (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    env:
+      WAILS_VERSION: v2.17.0
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: darwin/universal
+            goos: darwin
+            goarch: universal
+            ext: zip
+          - os: windows-latest
+            target: windows/amd64
+            goos: windows
+            goarch: amd64
+            ext: zip
+          - os: ubuntu-22.04
+            target: linux/amd64
+            goos: linux
+            goarch: amd64
+            ext: tar.gz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: client/go.mod
+          cache-dependency-path: client/go.sum
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+      - name: Install wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+      - name: Build
+        working-directory: client
+        run: wails build -clean -platform ${{ matrix.target }}
+      - name: Archive (zip, macOS)
+        if: runner.os == 'macOS'
+        working-directory: client/build/bin
+        env:
+          ARCHIVE: steamcmd-serve-client-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        run: ditto -c -k --sequesterRsrc --keepParent steamcmd-serve.app "$ARCHIVE.zip"
+      - name: Archive (zip, Windows)
+        if: runner.os == 'Windows'
+        working-directory: client/build/bin
+        shell: pwsh
+        env:
+          ARCHIVE: steamcmd-serve-client-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        run: Compress-Archive -Path steamcmd-serve-client.exe -DestinationPath "$env:ARCHIVE.zip"
+      - name: Archive (tar.gz, Linux)
+        if: runner.os == 'Linux'
+        working-directory: client/build/bin
+        env:
+          ARCHIVE: steamcmd-serve-client-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}
+        run: tar -czf "$ARCHIVE.tar.gz" steamcmd-serve-client
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: client/build/bin/steamcmd-serve-client-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}.${{ matrix.ext }}

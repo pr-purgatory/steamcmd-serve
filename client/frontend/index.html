@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>steamcmd-serve</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <h1>steamcmd-serve</h1>
+    <p class="sub">Connect to your controller</p>
+    <form id="form" autocomplete="off">
+      <label for="url">Controller address</label>
+      <input id="url" type="text" spellcheck="false" autocapitalize="off"
+             placeholder="http://192.168.1.10:8080" autofocus>
+      <p id="notice" class="notice" hidden>
+        This address uses unencrypted http:// on a non-private host. Your
+        login and session would cross the network in clear text.
+      </p>
+      <p id="error" class="error" role="alert" hidden></p>
+      <button id="go" type="submit">Connect</button>
+    </form>
+  </main>
+  <script src="main.js"></script>
+</body>
+</html>
