@@ -501,7 +501,7 @@ export interface components {
             reason: "manual" | "scheduled" | "pre-update" | "pre-restore";
         };
         ModRef: {
-            /** @description Thunderstore "Namespace-Name"; Nexus "<modId>:<fileId>". */
+            /** @description Thunderstore "Namespace-Name". Nexus: search returns "<modId>"; installing it picks the primary file and the installed ref becomes "<modId>:<fileId>". */
             id: string;
             version: string;
         };

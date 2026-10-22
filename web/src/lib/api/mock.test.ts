@@ -2,6 +2,7 @@ import createClient from 'openapi-fetch';
 import { describe, expect, it } from 'vitest';
 import { createCsrfMiddleware } from './csrf.ts';
 import { mockFetch } from './mock.ts';
+import { buildUploadForm } from '../mods.ts';
 import type { paths } from './schema';
 
 function mockClient() {
@@ -48,6 +49,79 @@ describe('mock API', () => {
 		const bad = await c.PUT('/instances/{instanceId}/settings', {
 			params: { path: { instanceId: 'inst-1' } },
 			body: { nope: 1 }
+		});
+		expect(bad.response.status).toBe(400);
+	});
+});
+
+describe('mock mods API', () => {
+	async function login() {
+		const c = mockClient();
+		await c.POST('/auth/login', { body: { username: 'a', password: 'b' } });
+		return c;
+	}
+	const FAKE_KEY = 'test-key-not-real';
+	const p = { params: { path: { instanceId: 'inst-2' } } };
+
+	it('nexus search needs a key; thunderstore lists deps', async () => {
+		const c = await login();
+		const ts = await c.GET('/games/{gameId}/mods', {
+			params: { path: { gameId: 'valheim' }, query: { provider: 'thunderstore', q: 'epic' } }
+		});
+		expect(ts.data?.[0].dependencies?.length).toBeGreaterThan(0);
+		const nx = await c.GET('/games/{gameId}/mods', {
+			params: { path: { gameId: 'valheim' }, query: { provider: 'nexus' } }
+		});
+		expect(nx.response.status).toBe(400);
+		expect(nx.error?.message).toMatch(/Settings/);
+		expect((await c.PUT('/settings/nexus-api-key', { body: { apiKey: FAKE_KEY } })).data?.premium).toBe(false);
+		const nx2 = await c.GET('/games/{gameId}/mods', {
+			params: { path: { gameId: 'valheim' }, query: { provider: 'nexus' } }
+		});
+		expect(nx2.response.status).toBe(200);
+		expect((await c.DELETE('/settings/nexus-api-key')).response.status).toBe(204);
+		expect((await c.GET('/settings/nexus-api-key')).data?.hasValue).toBe(false);
+	});
+
+	it('installs with deps, refuses uninstalling a dependency, fails nexus without premium', async () => {
+		const c = await login();
+		const job = await c.POST('/instances/{instanceId}/mods', {
+			...p,
+			body: { provider: 'thunderstore', ref: { id: 'RandyKnapp-EpicLoot', version: '0.10.4' } }
+		});
+		expect(job.response.status).toBe(202);
+		await new Promise((r) => setTimeout(r, 1700));
+		const list = (await c.GET('/instances/{instanceId}/mods', p)).data ?? [];
+		expect(list.find((m) => m.id === 'RandyKnapp-EpicLoot')?.explicit).toBe(true);
+		expect(list.find((m) => m.id === 'ValheimModding-Jotunn')?.explicit).toBe(false);
+		const del = await c.DELETE('/instances/{instanceId}/mods/{modId}', {
+			params: { path: { instanceId: 'inst-2', modId: 'ValheimModding-Jotunn' } }
+		});
+		expect(del.response.status).toBe(409);
+
+		const nx = await c.POST('/instances/{instanceId}/mods', {
+			...p,
+			body: { provider: 'nexus', ref: { id: '1000', version: '3.1.0' } }
+		});
+		await new Promise((r) => setTimeout(r, 700));
+		const j = await c.GET('/jobs/{jobId}', { params: { path: { jobId: nx.data!.id } } });
+		expect(j.data?.status).toBe('failed');
+		expect(j.data?.message).toMatch(/manual download/);
+	});
+
+	it('accepts a multipart upload built by buildUploadForm', async () => {
+		const c = await login();
+		const form = buildUploadForm('nexus', { id: '1001', version: '0.9.2' }, new Blob(['zip']), 'qs.zip');
+		const r = await c.POST('/instances/{instanceId}/mods', {
+			...p,
+			body: {} as never,
+			bodySerializer: () => form
+		});
+		expect(r.response.status).toBe(202);
+		const bad = await c.POST('/instances/{instanceId}/mods', {
+			...p,
+			body: {} as never,
+			bodySerializer: () => buildUploadForm('nexus', { id: '1', version: '1' }, new Blob(['x']), 'x.rar')
 		});
 		expect(bad.response.status).toBe(400);
 	});

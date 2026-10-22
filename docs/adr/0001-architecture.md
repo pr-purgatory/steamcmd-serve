@@ -82,7 +82,7 @@ The controller creates sibling containers, so bind-mount sources must be **host*
 - `DATA_DIR` (inside controller, default `/data`)
 - `HOST_DATA_ROOT` (same directory as the host sees it, e.g. `/mnt/user/appdata/steamcmd-serve`)
 
-Game installs are large (Enshrouded ~13 GB) and often belong on a different share than app data, so they have their own root, defaulting to `<data root>/games`:
+Game installs are large (Enshrouded ~8 GB measured, 30 GB free recommended) and often belong on a different share than app data, so they have their own root, defaulting to `<data root>/games`:
 
 - `GAMES_DIR` (inside controller) and `HOST_GAMES_ROOT` (host path, e.g. `/mnt/user/games/steamcmd-serve`)
 

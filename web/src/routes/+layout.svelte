@@ -42,6 +42,10 @@
 				href={resolve('/instances/new')}
 				aria-current={page.url.pathname === '/instances/new' ? 'page' : undefined}>New instance</a
 			>
+			<a
+				href={resolve('/settings')}
+				aria-current={page.url.pathname === '/settings' ? 'page' : undefined}>Settings</a
+			>
 			<span class="spacer"></span>
 			{#if username}
 				<span class="who">{username}</span>

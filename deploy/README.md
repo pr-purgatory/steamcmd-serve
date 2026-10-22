@@ -47,6 +47,9 @@ Notes:
 
 - `DATA_ROOT` is bind-mounted at `/data` and also passed as `HOST_DATA_ROOT`, so the
   path the controller hands to game containers is always the real host path.
+- Game installs go to `$DATA_ROOT/games` by default. To keep them on another disk, set
+  `GAMES_ROOT` to that directory and uncomment the `GAMES_DIR`, `HOST_GAMES_ROOT` and
+  `/games` volume lines in `compose.yaml`.
 - `DOCKER_GID` has no default and compose refuses to start without it: the controller
   needs the socket's group.
 - Optional: `PUID`/`PGID` (default 1000/1000). The controller and every game container

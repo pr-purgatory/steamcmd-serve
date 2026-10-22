@@ -288,6 +288,120 @@ function jobView(id: string): S['Job'] | null {
 	};
 }
 
+
+// ---- mods + NexusMods key (state is in-memory only; the key is never echoed back) ----
+/** Mock account state: `premium` is set when the saved key contains "premium". */
+export const mockNexus = { hasKey: false, premium: false, username: 'mock-user' };
+
+const TS_PACKAGES: S['ModPackage'][] = [
+	{
+		ref: { id: 'denikson-BepInExPack_Valheim', version: '5.4.2202' },
+		name: 'BepInExPack_Valheim',
+		author: 'denikson',
+		summary: 'BepInEx pack for Valheim.',
+		dependencies: []
+	},
+	{
+		ref: { id: 'RandyKnapp-EpicLoot', version: '0.10.4' },
+		name: 'EpicLoot',
+		author: 'RandyKnapp',
+		summary: 'Magic items, enchanting and loot.',
+		dependencies: [
+			{ id: 'denikson-BepInExPack_Valheim', version: '5.4.2202' },
+			{ id: 'ValheimModding-Jotunn', version: '2.20.0' }
+		]
+	},
+	{
+		ref: { id: 'ValheimModding-Jotunn', version: '2.20.0' },
+		name: 'Jotunn',
+		author: 'ValheimModding',
+		summary: 'Main Valheim modding library.',
+		dependencies: [{ id: 'denikson-BepInExPack_Valheim', version: '5.4.2202' }]
+	},
+	{
+		ref: { id: 'Advize-PlantEverything', version: '1.18.1' },
+		name: 'PlantEverything',
+		author: 'Advize',
+		summary: 'Plant and grow more things.',
+		dependencies: [{ id: 'denikson-BepInExPack_Valheim', version: '5.4.2202' }]
+	}
+];
+const NEXUS_PACKAGES: S['ModPackage'][] = [
+	{ ref: { id: '1000', version: '3.1.0' }, name: 'Better Building', author: 'nexus-author', summary: 'Build faster.', dependencies: [] },
+	{ ref: { id: '1001', version: '0.9.2' }, name: 'Quick Stack', author: 'nexus-author', summary: 'Stack items into chests.', dependencies: [] }
+];
+
+const installedMods = new Map<string, S['InstalledMod'][]>();
+const modJobs = new Map<string, { job: S['Job']; startedAt: number; fail?: string; ms: number }>();
+
+function modsFor(instId: string): S['InstalledMod'][] {
+	let l = installedMods.get(instId);
+	if (!l) installedMods.set(instId, (l = []));
+	return l;
+}
+
+function addMod(instId: string, provider: S['InstalledMod']['provider'], ref: S['ModRef'], explicit: boolean, requiredBy?: string) {
+	const list = modsFor(instId);
+	let cur = list.find((m) => m.provider === provider && m.ref.id === ref.id);
+	if (!cur) {
+		cur = {
+			id: ref.id,
+			provider,
+			ref,
+			sha256: 'mock'.padEnd(64, '0'),
+			explicit,
+			requiredBy: [],
+			installedAt: new Date().toISOString()
+		};
+		list.push(cur);
+	}
+	if (explicit) cur.explicit = true;
+	if (requiredBy && !cur.requiredBy.includes(requiredBy)) cur.requiredBy.push(requiredBy);
+}
+
+function startModJob(inst: S['Instance'], kind: 'mod-install' | 'mod-uninstall', work: () => void, fail?: string): S['Job'] {
+	const job: S['Job'] = {
+		id: `modjob-${nextJob++}`,
+		instanceId: inst.id,
+		kind,
+		status: 'running',
+		progress: 0,
+		createdAt: new Date().toISOString()
+	};
+	const ms = fail ? 600 : 1500;
+	modJobs.set(job.id, { job, startedAt: Date.now(), fail, ms });
+	if (!fail) after(ms, work);
+	return job;
+}
+
+function modJobView(id: string): S['Job'] | null {
+	const e = modJobs.get(id);
+	if (!e) return null;
+	const done = Date.now() - e.startedAt >= e.ms;
+	if (!done) {
+		return { ...e.job, status: 'running', progress: (Date.now() - e.startedAt) / e.ms * 0.9, message: 'Working…' };
+	}
+	return e.fail
+		? { ...e.job, status: 'failed', progress: 1, message: e.fail, finishedAt: new Date().toISOString() }
+		: { ...e.job, status: 'succeeded', progress: 1, message: 'Done', finishedAt: new Date().toISOString() };
+}
+
+function modChangeGuard(inst: S['Instance']): Response | null {
+	const game = mockGames.find((g) => g.id === inst.gameId);
+	if (!game || game.modLoader === 'none') return err(400, 'unsupported', `${game?.name ?? 'This game'} does not support mods`);
+	if (inst.state !== 'stopped' && inst.state !== 'error')
+		return err(409, 'bad_state', `Stop the server before changing mods (currently ${inst.state})`);
+	return null;
+}
+
+function installWithDeps(inst: S['Instance'], provider: S['InstalledMod']['provider'], ref: S['ModRef']) {
+	addMod(inst.id, provider, ref, true);
+	if (provider === 'thunderstore') {
+		const pkg = TS_PACKAGES.find((p) => p.ref.id === ref.id);
+		for (const d of pkg?.dependencies ?? []) addMod(inst.id, provider, d, false, ref.id);
+	}
+}
+
 export async function mockFetch(request: Request): Promise<Response> {
 	await new Promise((r) => setTimeout(r, 80));
 	const url = new URL(request.url, 'http://mock');
@@ -372,9 +486,106 @@ export async function mockFetch(request: Request): Promise<Response> {
 		return json(201, inst);
 	}
 
+	m = path.match(/^\/games\/([^/]+)\/mods$/);
+	if (m && method === 'GET') {
+		const game = mockGames.find((g) => g.id === m![1]);
+		if (!game) return err(404, 'not_found', 'Game not found');
+		const provider = url.searchParams.get('provider');
+		if (provider !== 'thunderstore' && provider !== 'nexus') return err(400, 'invalid', 'provider must be thunderstore or nexus');
+		if (!game.modProviders?.includes(provider)) return err(400, 'invalid', `${game.name} has no ${provider} mods`);
+		if (provider === 'nexus' && !mockNexus.hasKey)
+			return err(400, 'nexus_key_missing', 'add a NexusMods API key in Settings');
+		const q = (url.searchParams.get('q') ?? '').toLowerCase();
+		const all = provider === 'nexus' ? NEXUS_PACKAGES : TS_PACKAGES;
+		return json(200, all.filter((p) => !q || `${p.name} ${p.author} ${p.summary}`.toLowerCase().includes(q)));
+	}
+	if (path === '/settings/nexus-api-key') {
+		if (method === 'GET') {
+			const acc: S['NexusAccount'] = mockNexus.hasKey
+				? { hasValue: true, premium: mockNexus.premium, username: mockNexus.username }
+				: { hasValue: false };
+			return json(200, acc);
+		}
+		if (method === 'PUT') {
+			const body = (await request.json()) as { apiKey?: string };
+			if (!body.apiKey || body.apiKey.includes('invalid'))
+				return err(400, 'nexus_rejected', 'NexusMods rejected this API key');
+			mockNexus.hasKey = true;
+			mockNexus.premium = body.apiKey.includes('premium');
+			const acc: S['NexusAccount'] = { hasValue: true, premium: mockNexus.premium, username: mockNexus.username };
+			return json(200, acc);
+		}
+		if (method === 'DELETE') {
+			mockNexus.hasKey = false;
+			mockNexus.premium = false;
+			return empty(204);
+		}
+	}
+	m = path.match(/^\/instances\/([^/]+)\/mods$/);
+	if (m) {
+		const inst = instances.find((i) => i.id === m![1]);
+		if (!inst) return err(404, 'not_found', 'Instance not found');
+		if (method === 'GET') return json(200, modsFor(inst.id));
+		if (method === 'POST') {
+			const bad = modChangeGuard(inst);
+			if (bad) return bad;
+			let provider: string | undefined;
+			let ref: S['ModRef'] | undefined;
+			let uploaded = false;
+			if ((request.headers.get('Content-Type') ?? '').startsWith('multipart/form-data')) {
+				const form = await request.formData();
+				provider = String(form.get('provider') ?? '');
+				try {
+					ref = JSON.parse(String(form.get('ref') ?? '')) as S['ModRef'];
+				} catch {
+					return err(400, 'invalid', 'ref must be JSON');
+				}
+				const file = form.get('file');
+				if (!(file instanceof Blob) || !/\.zip$/i.test((file as File).name ?? ''))
+					return err(400, 'invalid', 'file must be a .zip archive');
+				uploaded = true;
+			} else {
+				const body = (await request.json()) as S['ModInstall'];
+				provider = body.provider;
+				ref = body.ref;
+			}
+			if ((provider !== 'thunderstore' && provider !== 'nexus') || !ref?.id) return err(400, 'invalid', 'Bad provider or ref');
+			const prov = provider;
+			const r = ref;
+			if (prov === 'nexus' && !uploaded && !mockNexus.premium) {
+				return json(
+					202,
+					startModJob(inst, 'mod-install', () => {}, 'This mod needs a manual download: free NexusMods accounts must download the file on nexusmods.com')
+				);
+			}
+			return json(202, startModJob(inst, 'mod-install', () => installWithDeps(inst, prov, r)));
+		}
+	}
+	m = path.match(/^\/instances\/([^/]+)\/mods\/([^/]+)$/);
+	if (m && method === 'DELETE') {
+		const inst = instances.find((i) => i.id === m![1]);
+		if (!inst) return err(404, 'not_found', 'Instance not found');
+		const bad = modChangeGuard(inst);
+		if (bad) return bad;
+		const modId = decodeURIComponent(m[2]);
+		const list = modsFor(inst.id);
+		const mod = list.find((x) => x.id === modId);
+		if (!mod) return err(404, 'not_found', 'Mod not installed');
+		if (!mod.explicit && mod.requiredBy.length)
+			return err(409, 'dependency', `${modId} is a dependency of ${mod.requiredBy.join(', ')}; uninstall that first`);
+		return json(
+			202,
+			startModJob(inst, 'mod-uninstall', () => {
+				const cur = modsFor(inst.id).filter((x) => x.id !== modId);
+				for (const x of cur) x.requiredBy = x.requiredBy.filter((r) => r !== modId);
+				installedMods.set(inst.id, cur.filter((x) => x.explicit || x.requiredBy.length));
+			})
+		);
+	}
+
 	m = path.match(/^\/jobs\/([^/]+)$/);
 	if (m && method === 'GET') {
-		const j = jobView(m[1]);
+		const j = modJobView(m[1]) ?? jobView(m[1]);
 		return j ? json(200, j) : err(404, 'not_found', 'Job not found');
 	}
 	m = path.match(/^\/instances\/([^/]+)\/backups$/);

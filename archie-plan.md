@@ -2,7 +2,7 @@
 Goal: Apache-2.0, self-hosted (Docker / Podman / Unraid) manager that installs, configures and runs many SteamCMD game-server instances from a web UI, Enshrouded first, with Thunderstore/NexusMods mod support.
 Tiers: light=claude-haiku-5-5 standard=claude-sonnet-5-5 strong=claude-opus-5-5 max=claude-opus-5-5 (max reasoning effort)
 Audit: pass-with-fixes (8) — self-audit by main agent on strong-tier model
-Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done · W6 done
+Progress: W1 done (T1) · W2 done (T2 T3 T4 T5; runtime checks moved to T4V) · W3 done (T4V verified on Unraid) · W4 done · W5 done · W6 done · W7 done
 Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ## Questions for Prompter
@@ -243,7 +243,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T10d — Mods UI
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: todo
+- Status: done (mods page, Nexus key settings, manual upload flow; 71 web tests)
 - Depends: T12, T13, T10a
 - Wave: 7 · Parallel: yes
 - Files: `web/src/routes/instances/[id]/mods/**` (w), `web/src/routes/settings/**` (w)
@@ -253,7 +253,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T18 — Docs
 - Score: 1.5 (jr) · Tier: light · Executor: subagent
-- Status: todo
+- Status: done (README, install guides for Docker/Podman/Unraid, Enshrouded guide; markdownlint clean)
 - Depends: T14, T15, T17
 - Wave: 7 · Parallel: yes
 - Files: `README.md` (w), `docs/install-*.md` (w), `docs/games/enshrouded.md` (w)

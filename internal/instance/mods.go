@@ -160,7 +160,7 @@ func (s *Service) installRefs(ctx context.Context, g *catalog.Game, inst *store.
 	root := refs[len(refs)-1]
 	rootID := ""
 	for _, m := range current {
-		if m.Provider == provider && m.PackageID == root.ID {
+		if m.Provider == provider && samePackage(m.PackageID, root.ID) {
 			rootID = m.ID
 		}
 	}
@@ -173,8 +173,8 @@ func (s *Service) installRefs(ctx context.Context, g *catalog.Game, inst *store.
 			return fmt.Errorf("provider returned invalid package id %q", ref.ID)
 		}
 		isRoot := i == len(refs)-1
-		existing := slices.IndexFunc(current, func(m *store.Mod) bool { return m.Provider == provider && m.PackageID == ref.ID })
-		if existing >= 0 && (!isRoot || current[existing].Version == ref.Version) {
+		existing := slices.IndexFunc(current, func(m *store.Mod) bool { return m.Provider == provider && samePackage(m.PackageID, ref.ID) })
+		if existing >= 0 && (!isRoot || (current[existing].PackageID == ref.ID && current[existing].Version == ref.Version)) {
 			m := current[existing]
 			if isRoot {
 				m.Explicit = true
@@ -386,6 +386,14 @@ func validPackageID(id string) bool {
 		}
 	}
 	return true
+}
+
+// samePackage compares package identities. Nexus ids are "<modId>:<fileId>"; a new
+// file of the same mod is an upgrade, not a second package.
+func samePackage(a, b string) bool {
+	ka, _, _ := strings.Cut(a, ":")
+	kb, _, _ := strings.Cut(b, ":")
+	return ka == kb
 }
 
 func safeSegment(v string) string {
