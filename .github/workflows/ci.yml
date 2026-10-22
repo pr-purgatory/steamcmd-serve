@@ -20,6 +20,8 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
+      - name: Release tag script tests
+        run: .github/scripts/release-tag_test.sh
 
   api:
     name: Lint OpenAPI
