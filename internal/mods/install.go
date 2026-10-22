@@ -198,6 +198,11 @@ func Apply(installDir, record string, stages []string) error {
 }
 
 func readRecord(record string) ([]string, error) {
+	for _, seg := range strings.Split(filepath.ToSlash(record), "/") {
+		if seg == ".." {
+			return nil, fmt.Errorf("invalid file path")
+		}
+	}
 	raw, err := os.ReadFile(record)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -238,6 +243,16 @@ func writeRecord(record string, written map[string]bool) error {
 }
 
 func copyFile(src, dst string) error {
+	for _, seg := range strings.Split(filepath.ToSlash(src), "/") {
+		if seg == ".." {
+			return fmt.Errorf("invalid file path")
+		}
+	}
+	for _, seg := range strings.Split(filepath.ToSlash(dst), "/") {
+		if seg == ".." {
+			return fmt.Errorf("invalid file path")
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(dst), 0o775); err != nil {
 		return err
 	}
