@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import { api, onUnauthorized } from '#lib/api/client.ts';
+	import { api, onUnauthorized, setupRequired } from '#lib/api/client.ts';
 
 	let { children } = $props();
 
@@ -13,7 +13,7 @@
 	onUnauthorized(() => {
 		username = null;
 		if (page.url.pathname !== '/login' && page.url.pathname !== '/setup') {
-			void goto(resolve('/login'));
+			void setupRequired().then((req) => goto(resolve(req ? '/setup' : '/login')));
 		}
 	});
 

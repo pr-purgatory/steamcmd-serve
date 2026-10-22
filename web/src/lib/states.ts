@@ -34,10 +34,13 @@ export const STATE_GLYPH: Record<InstanceState, string> = {
 	error: '✖'
 };
 
-export const canStart = (s: InstanceState) => s === 'stopped';
+// Mirrors the server rules (api/openapi.yaml, instanceAction).
+export const canStart = (s: InstanceState) => s === 'stopped' || s === 'error';
 export const canStop = (s: InstanceState) => s === 'running' || s === 'starting';
 export const canRestart = (s: InstanceState) => s === 'running';
 export const canInstall = (s: InstanceState) => s === 'new' || s === 'error';
-export const canUpdate = (s: InstanceState) => s === 'stopped';
+export const canUpdate = (s: InstanceState) => s === 'stopped' || s === 'error';
+/** Editing and deleting an instance need it idle. */
+export const canEditInstance = (s: InstanceState) => s === 'new' || s === 'stopped' || s === 'error';
 /** Restoring a backup needs the server stopped (or crashed). */
 export const canRestore = (s: InstanceState) => s === 'stopped' || s === 'error';

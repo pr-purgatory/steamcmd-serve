@@ -99,7 +99,7 @@ describe('defaults and groups', () => {
 	});
 });
 
-describe('Ajv validation', () => {
+describe('schema validation', () => {
 	const defaults = () => {
 		const d = defaultsFor(enshrouded) as Obj;
 		// default groups have blank passwords: generated at creation, so fill them
@@ -119,6 +119,11 @@ describe('Ajv validation', () => {
 		(d.gameSettings as Obj).tombstoneMode = 'x';
 		expect(Object.keys(validateSettings(enshrouded, d))).toEqual(['/gameSettings/tombstoneMode']);
 	});
+	it('flags unknown keys, not declared ones', () => {
+		const e = validateSettings(enshrouded, { ...defaults(), bogus: 1 });
+		expect(Object.keys(e)).toEqual(['/bogus']);
+		expect(e['/bogus']).toBe('Unknown setting');
+	});
 	it('reports minute limits in minutes, and missing item fields by path', () => {
 		const d = defaults();
 		(d.gameSettings as Obj).dayTimeDuration = 1;
@@ -126,5 +131,42 @@ describe('Ajv validation', () => {
 		const d2 = defaults();
 		delete (d2.userGroups as Obj[])[0].name;
 		expect(validateSettings(enshrouded, d2)['/userGroups/0/name']).toBe('Required');
+	});
+});
+
+describe('validation without code generation', () => {
+	it('never touches Function or eval (CSP has no unsafe-eval)', () => {
+		const realFunction = globalThis.Function;
+		const realEval = globalThis.eval;
+		const boom = () => {
+			throw new Error('dynamic code evaluation attempted');
+		};
+		globalThis.Function = boom as unknown as FunctionConstructor;
+		globalThis.eval = boom;
+		try {
+			const d = defaultsFor(enshrouded) as Obj;
+			(d.userGroups as Obj[]).forEach((g, i) => (g.password = `pw-${i}`));
+			const fresh = JSON.parse(JSON.stringify(enshrouded)) as typeof enshrouded; // uncached validator
+			expect(validateSettings(fresh, d)).toEqual({});
+			expect(Object.keys(validateSettings(fresh, { ...d, slotCount: 17 }))).toEqual(['/slotCount']);
+		} finally {
+			globalThis.Function = realFunction;
+			globalThis.eval = realEval;
+		}
+	});
+});
+
+describe('validation with an immutable schema', () => {
+	it('does not modify the schema it is given (Svelte $state proxies forbid it)', () => {
+		const deepFreeze = <T>(o: T): T => {
+			if (o && typeof o === 'object') {
+				Object.values(o).forEach(deepFreeze);
+				Object.freeze(o);
+			}
+			return o;
+		};
+		const frozen = deepFreeze(JSON.parse(JSON.stringify(enshroudedJson)));
+		expect(() => validateSettings(frozen, defaultsFor(frozen))).not.toThrow();
+		expect(validateSettings(frozen, { ...(defaultsFor(frozen) as Obj), slotCount: 17 })['/slotCount']).toBeTruthy();
 	});
 });

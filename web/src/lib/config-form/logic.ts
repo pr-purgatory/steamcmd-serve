@@ -3,7 +3,7 @@
  * here knows about a particular game. Custom schema keywords honoured:
  * x-ui-group, x-unit / x-display-unit, x-secret, x-generate, x-enabled-when.
  */
-import Ajv2020 from 'ajv/dist/2020.js';
+import { Validator, type OutputUnit, type Schema as JsonSchema } from '@cfworker/json-schema';
 
 export type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 
@@ -206,8 +206,35 @@ export function niceStep(s: Schema, integer: boolean): number {
 
 export type FieldErrors = Record<string, string>;
 
-const ajv = new Ajv2020({ allErrors: true, strict: false });
-const compiled = new WeakMap<object, ReturnType<typeof ajv.compile>>();
+// @cfworker/json-schema interprets schemas (no code generation), so it works under a CSP
+// without 'unsafe-eval'. Unknown x-* keywords are ignored. allErrors = shortCircuit false.
+const validators = new WeakMap<object, Validator>();
+
+/** Keywords whose error only wraps the errors of a child; the leaf error is reported instead. */
+const WRAPPER_KEYWORDS = new Set([
+	'properties',
+	'patternProperties',
+	'additionalProperties',
+	'unevaluatedProperties',
+	'items',
+	'prefixItems',
+	'additionalItems',
+	'unevaluatedItems',
+	'$ref',
+	'$recursiveRef',
+	'allOf',
+	'dependentSchemas',
+	'dependencies'
+]);
+
+function unescapePointer(seg: string): string {
+	return seg.replace(/~1/g, '/').replace(/~0/g, '~');
+}
+
+/** "#/a/b" -> "/a/b" ("#" -> ""). */
+function toInstancePath(loc: string): string {
+	return loc.replace(/^#/, '').split('/').map(unescapePointer).join('/');
+}
 
 function schemaAt(root: Schema, path: string): Schema | undefined {
 	let cur: Schema | undefined = root;
@@ -228,29 +255,43 @@ function fmtMin(ns: number): string {
  * to the offending child path.
  */
 export function validateSettings(schema: Schema, value: Json): FieldErrors {
-	let fn = compiled.get(schema);
-	if (!fn) {
-		fn = ajv.compile(schema);
-		compiled.set(schema, fn);
+	let v = validators.get(schema);
+	if (!v) {
+		// The validator annotates the schema object it is given (defineProperty), which
+		// fails on Svelte $state proxies and frozen objects: give it a plain copy.
+		v = new Validator(JSON.parse(JSON.stringify(schema)) as JsonSchema, '2020-12', false);
+		validators.set(schema, v);
 	}
 	const out: FieldErrors = {};
-	if (fn(value)) return out;
-	for (const e of fn.errors ?? []) {
-		let path = e.instancePath;
-		let msg = e.message ?? 'Invalid';
+	const result = v.validate(value);
+	if (result.valid) return out;
+	for (const e of result.errors as OutputUnit[]) {
+		if (WRAPPER_KEYWORDS.has(e.keyword)) continue;
+		let path = toInstancePath(e.instanceLocation);
+		let msg = e.error || 'Invalid';
+		const s = schemaAt(schema, path);
 		if (e.keyword === 'required') {
-			path += `/${(e.params as { missingProperty: string }).missingProperty}`;
+			const m = /required property "(.*)"\.$/.exec(e.error);
+			path += `/${m ? m[1] : ''}`;
 			msg = 'Required';
-		} else if (e.keyword === 'additionalProperties') {
-			path += `/${(e.params as { additionalProperty: string }).additionalProperty}`;
+		} else if (e.keyword === 'false') {
+			// `additionalProperties: false` rejecting this key. The validator also flags declared
+			// properties that failed their own schema (they count as not evaluated): skip those,
+			// their real error is reported separately.
+			const i = path.lastIndexOf('/');
+			const parent = schemaAt(schema, path.slice(0, i));
+			if (parent?.properties && path.slice(i + 1) in parent.properties) continue;
 			msg = 'Unknown setting';
 		} else if (e.keyword === 'enum') {
 			msg = 'Must be one of the listed options';
 		} else if (e.keyword === 'minimum' || e.keyword === 'maximum') {
-			const s = schemaAt(schema, e.instancePath);
-			const limit = (e.params as { limit: number }).limit;
-			const word = e.keyword === 'minimum' ? 'at least' : 'at most';
-			msg = `Must be ${word} ${s && isMinuteUnit(s) ? fmtMin(limit) : limit}`;
+			const limit = (e.keyword === 'minimum' ? s?.minimum : s?.maximum) as number | undefined;
+			if (limit !== undefined) {
+				const word = e.keyword === 'minimum' ? 'at least' : 'at most';
+				msg = `Must be ${word} ${s && isMinuteUnit(s) ? fmtMin(limit) : limit}`;
+			}
+		} else if (e.keyword === 'type') {
+			msg = e.error.replace(/^Instance type /, 'Type ');
 		}
 		if (!(path in out)) out[path] = msg;
 	}

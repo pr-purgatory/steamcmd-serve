@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { api, errorMessage } from '#lib/api/client.ts';
 	import type { Game } from '#lib/api/types.ts';
+	import { setCreatedWarnings } from '#lib/created.ts';
 	import {
 		NAME_MAX,
 		createPortsPayload,
@@ -76,7 +77,7 @@
 		if (!game || nameError || !portsValid) return;
 		submitError = null;
 		busy = true;
-		const { response, error } = await api.POST('/instances', {
+		const { response, error, data } = await api.POST('/instances', {
 			body: {
 				name,
 				gameId: game.id,
@@ -85,8 +86,10 @@
 			}
 		});
 		busy = false;
-		if (response.ok) {
-			await goto(resolve('/'));
+		if (response.ok && data) {
+			const warnings = data.warnings ?? [];
+			setCreatedWarnings(data.id, warnings);
+			await goto(`${resolve('/instances/[id]', { id: data.id })}?created=1`);
 		} else if (response.status !== 401) {
 			submitError = errorMessage(error, `Create failed (${response.status})`);
 		}
@@ -117,8 +120,10 @@
 				<legend><h2>Pick a game</h2></legend>
 				<div class="games">
 					{#each games as g (g.id)}
-						<label class="game" class:selected={gameId === g.id}>
+						<label class="game" class:selected={gameId === g.id} for="game-{g.id}">
 							<input
+								id="game-{g.id}"
+								aria-label={g.name}
 								type="radio"
 								name="game"
 								value={g.id}

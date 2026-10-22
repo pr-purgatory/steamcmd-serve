@@ -57,3 +57,13 @@ export function errorMessage(error: unknown, fallback = 'Request failed'): strin
 	}
 	return fallback;
 }
+
+/** True when first-run setup is still pending (no admin yet). Unknown/failed -> false. */
+export async function setupRequired(): Promise<boolean> {
+	try {
+		const { data } = await api.GET('/setup');
+		return data?.required === true;
+	} catch {
+		return false;
+	}
+}

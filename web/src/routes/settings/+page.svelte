@@ -76,9 +76,10 @@
 	</p>
 
 	<form onsubmit={save} autocomplete="off">
-		<label>
-			{account?.hasValue ? 'Replace API key' : 'API key'}
+		<div class="field">
+			<label for="nexus-api-key">{account?.hasValue ? 'Replace API key' : 'API key'}</label>
 			<input
+				id="nexus-api-key"
 				type="password"
 				name="nexus-api-key"
 				bind:value={keyInput}
@@ -86,7 +87,7 @@
 				spellcheck="false"
 				required
 			/>
-		</label>
+		</div>
 		<div class="row">
 			<button type="submit" class="primary" disabled={saving || !keyInput.trim()}>
 				{saving ? 'Saving…' : 'Save key'}

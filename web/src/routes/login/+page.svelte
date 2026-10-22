@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { api, errorMessage } from '#lib/api/client.ts';
+	import { onMount } from 'svelte';
+	import { api, errorMessage, setupRequired } from '#lib/api/client.ts';
 
 	let username = $state('');
 	let password = $state('');
 	let error = $state<string | null>(null);
 	let busy = $state(false);
+
+	onMount(() => {
+		void setupRequired().then((req) => {
+			if (req) void goto(resolve('/setup'));
+		});
+	});
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();

@@ -113,6 +113,7 @@
 	/** Runs a request that returns a job, polls it, then refreshes. */
 	async function run(
 		label: string,
+		doneText: string,
 		start: () => Promise<{ job?: Job; message?: string }>,
 		onJobFailed?: (e: JobFailedError) => boolean
 	) {
@@ -134,7 +135,7 @@
 			}
 			const jobId = started.job.id;
 			job = started.job;
-			const final = await pollJob(
+			await pollJob(
 				async () => {
 					const { data, error: err } = await api.GET('/jobs/{jobId}', { params: { path: { jobId } } });
 					if (!data) throw new Error(errorMessage(err, 'Could not read job status'));
@@ -142,7 +143,7 @@
 				},
 				{ intervalMs: 1000, signal: mine.signal, onUpdate: (j) => (job = j) }
 			);
-			jobDone = `${label}: ${final.message || 'done'}.`;
+						jobDone = doneText;
 			manual = null;
 			file = null;
 		} catch (e) {
@@ -164,6 +165,7 @@
 		file = null;
 		void run(
 			`Install ${pkg.name}`,
+			`Installed ${pkg.name}.`,
 			async () => {
 				const { data, error: err, response } = await api.POST('/instances/{instanceId}/mods', {
 					params: { path: { instanceId: id } },
@@ -186,7 +188,7 @@
 		const target = manual;
 		if (!target || !file || uploadProblem(file)) return;
 		const f = file;
-		void run(`Upload ${target.pkg.name}`, async () => {
+		void run(`Upload ${target.pkg.name}`, `Uploaded ${target.pkg.name}.`, async () => {
 			const form = buildUploadForm(target.provider, target.pkg.ref, f, f.name);
 			const { data, error: err, response } = await api.POST('/instances/{instanceId}/mods', {
 				params: { path: { instanceId: id } },
@@ -200,7 +202,7 @@
 
 	function uninstall(m: InstalledMod) {
 		confirming = null;
-		void run(`Uninstall ${m.ref.id}`, async () => {
+		void run(`Uninstall ${m.ref.id}`, `Uninstalled ${m.ref.id}.`, async () => {
 			const { data, error: err, response } = await api.DELETE('/instances/{instanceId}/mods/{modId}', {
 				params: { path: { instanceId: id, modId: m.id } }
 			});

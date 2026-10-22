@@ -33,10 +33,21 @@
 		const { response, error: err } = await api.POST('/setup', {
 			body: { username: username.trim(), password }
 		});
-		busy = false;
 		if (response.ok) {
-			await goto(resolve('/login'));
-		} else if (response.status === 409) {
+			// Log in with the same credentials, then go to the app.
+			const login = await api.POST('/auth/login', {
+				body: { username: username.trim(), password }
+			});
+			busy = false;
+			if (login.response.ok) {
+				await goto(resolve('/'));
+			} else {
+				await goto(resolve('/login'));
+			}
+			return;
+		}
+		busy = false;
+		if (response.status === 409) {
 			error = 'Setup is already complete. Log in instead.';
 		} else {
 			error = errorMessage(err, 'Setup failed');

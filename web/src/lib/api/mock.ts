@@ -192,7 +192,8 @@ function runAction(inst: S['Instance'], action: string): Response {
 	};
 	switch (action) {
 		case 'start':
-			if (inst.state !== 'stopped') return err(409, 'bad_state', `Cannot start while ${inst.state}`);
+			if (inst.state !== 'stopped' && inst.state !== 'error')
+				return err(409, 'bad_state', `Cannot start while ${inst.state}`);
 			inst.state = 'starting';
 			inst.ready = false;
 			after(1500, () => {
@@ -221,7 +222,7 @@ function runAction(inst: S['Instance'], action: string): Response {
 			break;
 		case 'install':
 		case 'update':
-			if (inst.state !== 'new' && inst.state !== 'stopped' && inst.state !== 'error')
+			if (action === 'install' ? inst.state !== 'new' && inst.state !== 'error' : inst.state !== 'stopped' && inst.state !== 'error')
 				return err(409, 'bad_state', `Cannot ${action} while ${inst.state}`);
 			inst.state = action === 'install' ? 'installing' : 'updating';
 			after(3000, () => (inst.state = 'stopped'));
@@ -408,6 +409,10 @@ export async function mockFetch(request: Request): Promise<Response> {
 	const path = url.pathname.replace(/^\/api\/v1/, '');
 	const method = request.method.toUpperCase();
 
+	if (path === '/setup' && method === 'GET') {
+		const body: { required: boolean } = { required: !adminCreated && !loggedIn() };
+		return json(200, body);
+	}
 	if (path === '/setup' && method === 'POST') {
 		if (adminCreated) return err(409, 'setup_done', 'Setup already completed');
 		const body = (await request.json()) as S['Credentials'];
@@ -483,7 +488,13 @@ export async function mockFetch(request: Request): Promise<Response> {
 			createdAt: new Date().toISOString()
 		};
 		instances.push(inst);
-		return json(201, inst);
+		const warnings: string[] = [];
+		if (inst.memoryMB < game.resources.memoryMB)
+			warnings.push(
+				`Memory limit ${inst.memoryMB} MB is below the ${game.resources.memoryMB} MB ${game.name} needs; the server may crash or be killed.`
+			);
+		const created: S['Instance'] & { warnings?: string[] } = warnings.length ? { ...inst, warnings } : inst;
+		return json(201, created);
 	}
 
 	m = path.match(/^\/games\/([^/]+)\/mods$/);
@@ -632,10 +643,41 @@ export async function mockFetch(request: Request): Promise<Response> {
 		if (idx < 0) return err(404, 'not_found', 'Instance not found');
 		if (method === 'GET') return json(200, instances[idx]);
 		if (method === 'DELETE') {
-			if (instances[idx].state !== 'stopped' && instances[idx].state !== 'new')
-				return err(409, 'bad_state', 'Instance must be stopped');
+			if (!['new', 'stopped', 'error'].includes(instances[idx].state))
+				return err(409, 'bad_state', `Stop the instance before deleting it (currently ${instances[idx].state})`);
 			instances.splice(idx, 1);
 			return empty(204);
+		}
+		if (method === 'PATCH') {
+			const inst = instances[idx];
+			if (!['new', 'stopped', 'error'].includes(inst.state))
+				return err(409, 'bad_state', `Stop the instance before editing it (currently ${inst.state})`);
+			const body = (await request.json()) as S['InstanceUpdate'];
+			const game = mockGames.find((g) => g.id === inst.gameId);
+			if (!game) return err(400, 'invalid', 'Unknown game');
+			if (body.name !== undefined && !body.name.trim()) return err(400, 'invalid', 'Name must not be empty');
+			if (body.memoryMB !== undefined && body.memoryMB < 128) return err(400, 'invalid', 'memoryMB must be at least 128');
+			const ports: S['PortBinding'][] = [];
+			for (const spec of game.ports) {
+				if (spec.derivedFrom) continue;
+				const cur = inst.ports.find((p) => p.name === spec.name);
+				ports.push({ name: spec.name, port: body.ports?.[spec.name] ?? cur?.port ?? spec.default, protocol: spec.protocol });
+			}
+			for (const spec of game.ports) {
+				if (!spec.derivedFrom) continue;
+				const base = ports.find((p) => p.name === spec.derivedFrom);
+				if (base) ports.push({ name: spec.name, port: base.port + (spec.offset ?? 0), protocol: spec.protocol });
+			}
+			for (const p of ports) {
+				const clash = instances.find(
+					(i) => i.id !== inst.id && i.ports.some((q) => q.port === p.port && q.protocol === p.protocol)
+				);
+				if (clash) return err(409, 'port_in_use', `Port ${p.port}/${p.protocol} is already used by "${clash.name}"`);
+			}
+			if (body.name !== undefined) inst.name = body.name;
+			if (body.memoryMB !== undefined) inst.memoryMB = body.memoryMB;
+			inst.ports = ports;
+			return json(200, inst);
 		}
 	}
 

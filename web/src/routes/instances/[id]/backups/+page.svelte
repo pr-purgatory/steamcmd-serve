@@ -42,7 +42,11 @@
 		else if (response.status !== 401) error = errorMessage(err, 'Could not load backups');
 	}
 
-	async function run(label: string, start: () => Promise<{ job?: Job; message?: string }>) {
+	async function run(
+		label: string,
+		doneText: string,
+		start: () => Promise<{ job?: Job; message?: string }>
+	) {
 		if (working) return;
 		working = true;
 		error = null;
@@ -60,7 +64,7 @@
 			}
 			const jobId = started.job.id;
 			job = started.job;
-			const final = await pollJob(
+			await pollJob(
 				async () => {
 					const { data, error: err } = await api.GET('/jobs/{jobId}', {
 						params: { path: { jobId } }
@@ -70,7 +74,7 @@
 				},
 				{ intervalMs: 1000, signal: mine.signal, onUpdate: (j) => (job = j) }
 			);
-			jobDone = `${label}: ${final.message || 'done'}.`;
+						jobDone = doneText;
 		} catch (e) {
 			if (!isAbortError(e)) error = `${label}: ${e instanceof Error ? e.message : String(e)}`;
 		} finally {
@@ -85,7 +89,7 @@
 	}
 
 	function backUp() {
-		void run('Backup', async () => {
+		void run('Backup', 'Backup created.', async () => {
 			const { data, error: err, response } = await api.POST('/instances/{instanceId}/backups', {
 				params: { path: { instanceId: id } }
 			});
@@ -95,7 +99,7 @@
 
 	function restore(b: Backup) {
 		confirming = null;
-		void run('Restore', async () => {
+		void run('Restore', `Restored the backup from ${new Date(b.createdAt).toLocaleString()}.`, async () => {
 			const { data, error: err, response } = await api.POST(
 				'/instances/{instanceId}/backups/{backupId}/restore',
 				{ params: { path: { instanceId: id, backupId: b.id } } }
