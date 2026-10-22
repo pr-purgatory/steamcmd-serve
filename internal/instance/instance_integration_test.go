@@ -288,15 +288,21 @@ mods: {loader: none}
 	}
 
 	// --- crash detection by periodic reconcile ---
-	wait(svc.Action(ctx, a.ID, ActionStart))
-	if err := rt.Stop(ctx, containerName(a.ID)); err != nil {
+	// The container is removed rather than stopped: with restart policy unless-stopped,
+	// Docker may restart a container whose process exits during `docker stop`, which is
+	// fine in production but makes a stopped container look like it never went away.
+	if j := wait(svc.Action(ctx, a.ID, ActionStart)); j.Status != jobs.Succeeded {
+		t.Fatalf("start before crash: %+v", j)
+	}
+	if err := rt.Remove(ctx, containerName(a.ID)); err != nil {
 		t.Fatal(err)
 	}
 	if err := svc.Reconcile(ctx, false); err != nil {
 		t.Fatal(err)
 	}
 	if inst := state(a.ID); inst.State != store.StateError {
-		t.Fatalf("container stopped outside the controller: state %s, want error", inst.State)
+		running, _ := rt.Running(ctx, containerName(a.ID))
+		t.Fatalf("container removed outside the controller: state %s (container running=%v), want error", inst.State, running)
 	}
 
 	// --- delete with data ---
