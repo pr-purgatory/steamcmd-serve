@@ -10,7 +10,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -72,13 +74,22 @@ func checkHealth(base string, timeout time.Duration) error {
 		if errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout()) {
 			return fmt.Errorf("timed out after %s waiting for the controller", timeout)
 		}
-		return fmt.Errorf("cannot reach the controller: %w", errors.Unwrap(err))
+		return fmt.Errorf("cannot reach the controller: %w%s", errors.Unwrap(err), unreachableHint(runtime.GOOS, err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusNoContent {
 		return fmt.Errorf("not a steamcmd-serve controller (GET /healthz returned %d, expected 204)", resp.StatusCode)
 	}
 	return nil
+}
+
+// unreachableHint explains the one failure users cannot diagnose themselves: on macOS
+// 15+, an app without a Local Network grant gets EHOSTUNREACH for LAN addresses.
+func unreachableHint(goos string, err error) string {
+	if goos == "darwin" && errors.Is(err, syscall.EHOSTUNREACH) {
+		return " (macOS may be blocking local network access for this app: check System Settings > Privacy & Security > Local Network, or open the controller in a browser)"
+	}
+	return ""
 }
 
 // isPrivateHost reports whether a plain-http host is on a private network

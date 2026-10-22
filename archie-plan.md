@@ -263,7 +263,7 @@ Scale: 1-2 jr · 2.5-3 eng · 3.5-4 sr · 4.5-5 ar
 
 ### T19 — (stretch) Cross-platform thin client
 - Score: 3 (eng) · Tier: standard · Executor: subagent
-- Status: done (Wails v2.17 thin client; connect page + error paths verified on a MacBook Air; LAN connect blocked by macOS Local Network privacy until the user allows it)
+- Status: done with known limitation — connect page and error paths verified on a MacBook Air; unsigned macOS builds get no Local Network grant (macOS 15+), so LAN controllers are unreachable from the app on macOS until it is Developer ID signed (documented; app shows a hint)
 - Depends: T8, T9
 - Wave: 8 · Parallel: yes
 - Files: `client/**` (w)

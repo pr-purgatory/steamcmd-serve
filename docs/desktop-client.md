@@ -59,6 +59,23 @@ warns on first launch.
 - **Windows (SmartScreen):** choose **More info**, then **Run anyway**.
 - **Linux:** make the binary executable (`chmod +x steamcmd-serve-client`).
 
+### macOS: controllers on your local network
+
+macOS 15 and later only let an app reach other devices on your local network
+after you allow it under System Settings > Privacy & Security > Local Network.
+Unsigned builds like these may never appear in that list, so macOS blocks the
+connection and the app reports `no route to host` (tested 2026-10-21 on a
+MacBook Air reaching a controller on another Mac).
+
+What works today:
+
+- A controller running on the same Mac (`http://127.0.0.1:8080`).
+- The web UI in a browser, which is the same interface.
+
+A build signed with an Apple Developer ID gets a stable identity that macOS can
+grant Local Network access to; that needs an Apple Developer account and is not
+part of the release builds yet.
+
 ## Build from source
 
 Requirements: Go (see `client/go.mod`), the platform's C toolchain and web

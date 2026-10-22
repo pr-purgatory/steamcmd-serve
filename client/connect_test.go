@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -136,5 +138,18 @@ func TestIsPrivateHost(t *testing.T) {
 	}
 	if !insecureRemote("http://example.com") || insecureRemote("https://example.com") || insecureRemote("http://192.168.1.1:80") {
 		t.Error("insecureRemote wrong")
+	}
+}
+
+func TestUnreachableHint(t *testing.T) {
+	wrapped := fmt.Errorf("dial tcp 192.168.1.5:8080: %w", syscall.EHOSTUNREACH)
+	if h := unreachableHint("darwin", wrapped); !strings.Contains(h, "Local Network") {
+		t.Errorf("darwin EHOSTUNREACH: no hint (%q)", h)
+	}
+	if h := unreachableHint("linux", wrapped); h != "" {
+		t.Errorf("linux: unexpected hint %q", h)
+	}
+	if h := unreachableHint("darwin", syscall.ECONNREFUSED); h != "" {
+		t.Errorf("connection refused: unexpected hint %q", h)
 	}
 }
