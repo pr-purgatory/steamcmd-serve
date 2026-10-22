@@ -20,7 +20,7 @@ DOCKER ACCESS NOTE. The controller runs as nobody:users (--user=99:100) and need
   <Category>GameServers: Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL></TemplateURL>
-  <Icon>https://raw.githubusercontent.com/pr-purgatory/steamcmd-serve/main/deploy/unraid/icon.svg</Icon>
+  <Icon>https://raw.githubusercontent.com/pr-purgatory/steamcmd-serve/main/assets/logo-tile.png</Icon>
   <ExtraParams>--user=99:100 --group-add=281</ExtraParams>
   <PostArgs></PostArgs>
   <CPUset></CPUset>

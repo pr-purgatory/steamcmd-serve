@@ -38,6 +38,7 @@
 <svelte:head><title>Log in - steamcmd-serve</title></svelte:head>
 
 <div class="card narrow">
+	<img class="logo" src="/logo-64.png" alt="steamcmd-serve" width="56" height="56" />
 	<h1>Log in</h1>
 	{#if error}<p class="alert" role="alert">{error}</p>{/if}
 	<form onsubmit={submit}>
@@ -61,6 +62,10 @@
 </div>
 
 <style>
+	.logo {
+		display: block;
+		margin-bottom: 0.75rem;
+	}
 	.narrow {
 		max-width: 26rem;
 		margin: 2rem auto;

@@ -36,7 +36,7 @@
 {#if !bare}
 	<header class="topbar">
 		<nav aria-label="Main">
-			<a class="brand" href={resolve('/')}>steamcmd-serve</a>
+			<a class="brand" href={resolve('/')}><img src="/logo-64.png" alt="" width="28" height="28" />steamcmd-serve</a>
 			<a href={resolve('/')} aria-current={page.url.pathname === '/' ? 'page' : undefined}>Instances</a>
 			<a
 				href={resolve('/instances/new')}
@@ -74,6 +74,9 @@
 		align-items: center;
 	}
 	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-weight: 700;
 		color: var(--text);
 		text-decoration: none;

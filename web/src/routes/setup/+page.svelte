@@ -58,6 +58,7 @@
 <svelte:head><title>Set up - steamcmd-serve</title></svelte:head>
 
 <div class="card narrow">
+	<img class="logo" src="/logo-64.png" alt="steamcmd-serve" width="56" height="56" />
 	<h1>Create the admin account</h1>
 	<p class="hint">Only available until the first admin exists.</p>
 	{#if error}<p class="alert" role="alert">{error}</p>{/if}
@@ -101,6 +102,10 @@
 </div>
 
 <style>
+	.logo {
+		display: block;
+		margin-bottom: 0.75rem;
+	}
 	.narrow {
 		max-width: 26rem;
 		margin: 2rem auto;

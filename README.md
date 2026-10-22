@@ -1,5 +1,8 @@
 # steamcmd-serve
 
+<!-- markdownlint-disable-next-line MD033 -->
+<img src="assets/logo-tile.png" alt="steamcmd-serve logo" width="160">
+
 steamcmd-serve is a self-hosted web UI and API for installing, configuring
 and running SteamCMD dedicated game servers. You manage each server from the
 browser: install it, change its settings, start and stop it, read its logs,
